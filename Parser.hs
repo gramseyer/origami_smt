@@ -3,8 +3,10 @@ module Parser(
     Declaration (DEC_FOLD1,
                  DEC_FOLD2,
                  DEC_FOLD3,
+                 DEC_NFOLD3,
                  DEC_FOLD4,
                  DEC_FOLD5,
+                 DEC_NFOLD5,
                  DEC_FOLD6,
                  DEC_INTERSECT),
     Constraint (CN_PARALLEL),
@@ -23,8 +25,10 @@ data Program = PROGRAM [Declaration] [Constraint]
 data Declaration = DEC_FOLD1 Identifier Identifier Identifier
                  | DEC_FOLD2 Identifier Identifier Identifier
                  | DEC_FOLD3 Identifier Identifier Identifier
+                 | DEC_NFOLD3 Identifier Identifier Identifier
                  | DEC_FOLD4 Identifier Identifier Identifier
                  | DEC_FOLD5 Identifier Identifier Identifier Identifier
+                 | DEC_NFOLD5 Identifier Identifier Identifier Identifier
                  | DEC_FOLD6 Identifier Identifier Identifier Identifier Identifier
                  | DEC_INTERSECT Identifier Identifier Identifier
     deriving Show
@@ -51,8 +55,10 @@ declaration :: Parser Declaration
 declaration = try fold1dec
           <|> try fold2dec
           <|> try fold3dec
+          <|> try nfold3dec
           <|> try fold4dec
           <|> try fold5dec
+          <|> try nfold5dec
           <|> try intersectdec
     
 fold1dec :: Parser Declaration
@@ -63,6 +69,9 @@ fold2dec = decmaker "fold2" DEC_FOLD2
 
 fold3dec :: Parser Declaration
 fold3dec = decmaker "fold3" DEC_FOLD3
+
+nfold3dec :: Parser Declaration
+nfold3dec = decmaker "nfold3" DEC_NFOLD3
 
 fold4dec :: Parser Declaration
 fold4dec = decmaker "fold4" DEC_FOLD4
@@ -85,7 +94,26 @@ fold5dec = do
     endl
     many ignore
     return $ DEC_FOLD5 varname pointMove pointCenter line
-    
+
+--like the above but nondeterministic choice of which fold to use
+nfold5dec :: Parser Declaration
+nfold5dec = do
+    varname <- identifier
+    whitespace
+    char '='
+    whitespace
+    string "nfold5"
+    whitespace
+    pointMove <- identifier
+    whitespace
+    pointCenter <- identifier
+    whitespace
+    line <- identifier
+    whitespace
+    endl
+    many ignore
+    return $ DEC_FOLD5 varname pointMove pointCenter line
+
 intersectdec :: Parser Declaration
 intersectdec = decmaker "intersect" DEC_INTERSECT
 
