@@ -5,7 +5,8 @@ module Parser(
                  DEC_FOLD3,
                  DEC_NFOLD3,
                  DEC_FOLD4,
-                 DEC_FOLD5,
+                 DEC_FOLD5_SOL1,
+                 DEC_FOLD5_SOL2,
                  DEC_NFOLD5,
                  DEC_FOLD6,
                  DEC_INTERSECT),
@@ -27,7 +28,8 @@ data Declaration = DEC_FOLD1 Identifier Identifier Identifier
                  | DEC_FOLD3 Identifier Identifier Identifier
                  | DEC_NFOLD3 Identifier Identifier Identifier
                  | DEC_FOLD4 Identifier Identifier Identifier
-                 | DEC_FOLD5 Identifier Identifier Identifier Identifier
+                 | DEC_FOLD5_SOL1 Identifier Identifier Identifier Identifier
+                 | DEC_FOLD5_SOL2 Identifier Identifier Identifier Identifier
                  | DEC_NFOLD5 Identifier Identifier Identifier Identifier
                  | DEC_FOLD6 Identifier Identifier Identifier Identifier Identifier
                  | DEC_INTERSECT Identifier Identifier Identifier
@@ -57,7 +59,8 @@ declaration = try fold1dec
           <|> try fold3dec
           <|> try nfold3dec
           <|> try fold4dec
-          <|> try fold5dec
+          <|> try fold5decSol1
+          <|> try fold5decSol2
           <|> try nfold5dec
           <|> try intersectdec
     
@@ -77,32 +80,22 @@ fold4dec :: Parser Declaration
 fold4dec = decmaker "fold4" DEC_FOLD4
 
 -- Move first arg point over fold crossing arg2 onto line arg3
-fold5dec :: Parser Declaration
-fold5dec = do 
-    varname <- identifier
-    whitespace
-    char '='
-    whitespace
-    string "fold5"
-    whitespace
-    pointMove <- identifier
-    whitespace
-    pointCenter <- identifier
-    whitespace
-    line <- identifier
-    whitespace
-    endl
-    many ignore
-    return $ DEC_FOLD5 varname pointMove pointCenter line
+fold5decSol1 :: Parser Declaration
+fold5decSol1 = dec5maker "fold5_sol1" DEC_FOLD5_SOL1
 
+fold5decSol2 :: Parser Declaration
+fold5decSol2 = dec5maker "fold5_sol2" DEC_FOLD5_SOL2
 --like the above but nondeterministic choice of which fold to use
 nfold5dec :: Parser Declaration
-nfold5dec = do
+nfold5dec = dec5maker "nfold5" DEC_NFOLD5
+
+dec5maker :: String -> (Identifier -> Identifier -> Identifier -> Identifier -> Declaration) -> Parser Declaration
+dec5maker str cons = do
     varname <- identifier
     whitespace
     char '='
     whitespace
-    string "nfold5"
+    string str
     whitespace
     pointMove <- identifier
     whitespace
@@ -112,7 +105,7 @@ nfold5dec = do
     whitespace
     endl
     many ignore
-    return $ DEC_FOLD5 varname pointMove pointCenter line
+    return $ cons varname pointMove pointCenter line
 
 intersectdec :: Parser Declaration
 intersectdec = decmaker "intersect" DEC_INTERSECT

@@ -41,6 +41,10 @@ addDecl (Parser.DEC_FOLD2 var arg1 arg2)  = addFold2Decl var arg1 arg2
 addDecl (Parser.DEC_FOLD3 var arg1 arg2)  = addFold3Decl var arg1 arg2
 addDecl (Parser.DEC_NFOLD3 var arg1 arg2) = addNFold3Decl var arg1 arg2
 addDecl (Parser.DEC_FOLD4 var arg1 arg2)  = addFold4Decl var arg1 arg2
+addDecl (Parser.DEC_FOLD5_SOL1 var pointMove pointCenter line)
+                                          = addFold5DeclSol1 var pointMove pointCenter line
+addDecl (Parser.DEC_FOLD5_SOL2 var pointMove pointCenter line)
+                                          = addFold5DeclSol2 var pointMove pointCenter line
 addDecl (Parser.DEC_NFOLD5 var pointMove pointCenter line)
                                           = addNFold5Decl var pointMove pointCenter line
 addDecl (Parser.DEC_INTERSECT var arg1 arg2) = addIntersectDecl var arg1 arg2
@@ -170,6 +174,75 @@ addFold4Decl var arg1 arg2 = do
     addExpr eqAssert
     addExpr eqAssert'    
 
+addFold5DeclSol1 :: Parser.Identifier
+                 -> Parser.Identifier
+                 -> Parser.Identifier
+                 -> Parser.Identifier
+                 -> TransformState()
+addFold5DeclSol1 = addFold5DeclGenerator True
+
+addFold5DeclSol2 :: Parser.Identifier
+                 -> Parser.Identifier
+                 -> Parser.Identifier
+                 -> Parser.Identifier
+                 -> TransformState ()
+addFold5DeclSol2 = addFold5DeclGenerator False
+
+addFold5DeclGenerator :: Bool
+                      -> Parser.Identifier
+                      -> Parser.Identifier
+                      -> Parser.Identifier
+                      -> Parser.Identifier
+                      -> TransformState ()
+addFold5DeclGenerator flag var pointMove pointOnLine line = do
+    (x1, y1, x2, y2) <- State.addLine var
+    (xc, yc) <- State.getPointVars pointOnLine
+    (a, b) <- State.getPointVars pointMove
+    (c1, d1, c2, d2) <- State.getLineVars line
+    let r2 = distance (xc, yc) (a, b)
+    let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
+    let quadB = OP "+" (OP "*" (CONST 2) (OP "*" (OP "-" (VAR c2) (VAR c1))
+                                                 (OP "-" (VAR c1) (VAR c2))))
+                       (OP "*" (CONST 2) (OP "*" (OP "-" (VAR d2) (VAR d1))
+                                                 (OP "-" (VAR d1) (VAR d2))))
+    let quadC = OP "-" (OP "-" (OP "+" (OP "+" (OP "+" (SQR (VAR d1)) (SQR (VAR c1)))
+                                               (SQR (VAR xc)))
+                                       (SQR (VAR yc)))
+                               (OP "*" (CONST 2) (OP "+" (OP "*" (VAR xc) (VAR c1))
+                                                         (OP "*" (VAR yc) (VAR d1)))))
+                       r2
+    (desc, f2) <- State.freshVarPair
+    let descExpr = OP "-" (SQR quadB) (OP "*" (OP "*" (CONST 2) quadA) quadC)
+    addExpr $ OP "=" (SQR (VAR desc)) descExpr
+    let sol1 = OP "/" (OP "+" (OP "-" (CONST 0) quadB) (VAR desc))
+                      (OP "*" (CONST 2) quadA)
+    let sol2 = OP "/" (OP "-" (OP "-" (CONST 0) quadB) (VAR desc))
+                      (OP "*" (CONST 2) quadA)
+    let sol1x = midPoint (VAR a) (OP "+" (VAR c1) (OP "*" sol1 (OP "-" (VAR c2) (VAR c1))))
+    let sol1y = midPoint (VAR b) (OP "+" (VAR d1) (OP "*" sol1 (OP "-" (VAR d2) (VAR d1))))
+    let sol2x = midPoint (VAR a) (OP "+" (VAR c1) (OP "*" sol2 (OP "-" (VAR c2) (VAR c1))))
+    let sol2y = midPoint (VAR b) (OP "+" (VAR d1) (OP "*" sol2 (OP "-" (VAR d2) (VAR d1))))
+
+    let wx = OP "-" sol1x (VAR a)
+    let wy = OP "-" sol1y (VAR b)
+    let vx = OP "-" sol2x (VAR a)
+    let vy = OP "-" sol2y (VAR b)
+
+    let crossProd = crossProdExpr (vx, vy) (wx, wy)
+    
+    let sol1Expr = OP "and" (OP "=" (VAR x2) sol1x) (OP "=" (VAR y2) sol1y)
+    let sol2Expr = OP "and" (OP "=" (VAR x2) sol2x) (OP "=" (VAR y2) sol2y)
+
+    let firstStr = if flag then ">=" else "<="
+    let secondStr = if flag then "<=" else ">="
+
+    let sol1Constrained = OP "and" (OP firstStr crossProd (CONST 0)) sol1Expr
+    let sol2Constrained = OP "and" (OP secondStr crossProd (CONST 0)) sol2Expr
+
+    let centerExpr = OP "and" (OP "=" (VAR x1) (VAR xc)) (OP "=" (VAR y1) (VAR yc))
+    let totalExpr = OP "and" centerExpr (OP "or" sol1Constrained sol2Constrained)
+    addExpr totalExpr
+
 addNFold5Decl :: Parser.Identifier
               -> Parser.Identifier
               -> Parser.Identifier
@@ -261,6 +334,10 @@ getParallelConstr (x1, y1, x2, y2) (a1, b1, a2, b2) =
                            (OP "-" (VAR b2) (VAR b1)))
                    (OP "*" (OP "-" (VAR y2) (VAR y1))
                            (OP "-" (VAR a2) (VAR a1))))
+
+crossProdExpr :: (Expr, Expr) -> (Expr, Expr) -> Expr
+crossProdExpr (vx, vy) (wx, wy) = OP "-" (OP "*" vx wy) (OP "*" vy wx)
+
 
 addExpr :: Expr -> TransformState ()
 addExpr = (State.addClause).translateExpr
