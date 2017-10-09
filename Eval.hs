@@ -21,11 +21,11 @@ data Expr = OP String Expr Expr
           | NEG Expr
 
 translateExpr :: Expr -> String
-translateExpr (VAR v) = v
+translateExpr (VAR v)        = v
 translateExpr (OP str e1 e2) = "(" ++ str ++ " " ++ (translateExpr e1) ++ " " ++ (translateExpr e2) ++ ")"
-translateExpr (SQR expr) = "(*" ++ (translateExpr expr) ++ (translateExpr expr) ++ ")"
-translateExpr (CONST x) = if x>=0 then (show x) else ("(- " ++ (show (abs x)) ++ ")")
-translateExpr (NEG expr) = "(not " ++ (translateExpr expr) ++ ")"
+translateExpr (SQR expr)     = "(*" ++ (translateExpr expr) ++ (translateExpr expr) ++ ")"
+translateExpr (CONST x)      = if x>=0 then (show x) else ("(- " ++ (show (abs x)) ++ ")")
+translateExpr (NEG expr)     = "(not " ++ (translateExpr expr) ++ ")"
 
 distance :: (State.Variable, State.Variable) -> (State.Variable, State.Variable) -> Expr
 distance (x1, y1) (x2, y2) = OP "+" (SQR (OP "-" (VAR x1) (VAR x2))) (SQR (OP "-" (VAR y1) (VAR y2)))
