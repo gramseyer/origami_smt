@@ -283,6 +283,21 @@ addNFold5Decl var pointMove pointOnLine line = do
     let totalExpr = OP "and" centerExpr (OP "or" sol1Expr sol2Expr)
     addExpr totalExpr
 
+{-
+addFold7Decl :: Parser.Identifier
+             -> Parser.Identifier
+             -> Parser.Identifier
+             -> Parser.Identifier
+             -> TransformState ()
+addFold7Decl var p l1 l2 = do
+    (x1, y1, x2, y2) <- State.addLine var
+    (x,y) <- State.getPointVars p
+    (a1, b1, a2, b2) <- State.getLineVars l1
+    (c1, d1, c2, d2) <- State.getLineVars l2
+  -}  
+
+
+
 midPoint :: Expr -> Expr -> Expr
 midPoint a b = OP "/" (OP "+" a b) (CONST 2)
 
