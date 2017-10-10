@@ -283,7 +283,7 @@ addNFold5Decl var pointMove pointOnLine line = do
     let totalExpr = OP "and" centerExpr (OP "or" sol1Expr sol2Expr)
     addExpr totalExpr
 
-{-
+
 addFold7Decl :: Parser.Identifier
              -> Parser.Identifier
              -> Parser.Identifier
@@ -294,9 +294,20 @@ addFold7Decl var p l1 l2 = do
     (x,y) <- State.getPointVars p
     (a1, b1, a2, b2) <- State.getLineVars l1
     (c1, d1, c2, d2) <- State.getLineVars l2
-  -}  
-
-
+    (tempx, tempy) <- State.freshVarPair
+    let newX = OP "+" (VAR x) (OP "-" (VAR a2) (VAR a1))
+    let newY = OP "+" (VAR y) (OP "-" (VAR b2) (VAR b1))
+    let (intX, intY) = getIntersectPtExprs (tempx, tempy) (VAR x, VAR y, newX, newY) (VAR c1, VAR d1, VAR c2, VAR d2)
+    let mpx = midPoint (VAR tempx) (VAR x)
+    let mpy = midPoint (VAR tempy) (VAR y)
+    addExpr $ OP "=" mpx (VAR x1)
+    addExpr $ OP "=" mpy (VAR y1)
+    let dxl1 = OP "-" (VAR a2) (VAR a1)
+    let dyl1 = OP "-" (VAR b2) (VAR b1)
+    let dx' = dyl1
+    let dy' = OP "-" (CONST 0) dxl1
+    addExpr $ OP "=" (VAR x2) (OP "+" mpx dx')
+    addExpr $ OP "=" (VAR y2) (OP "+" mpy dy')
 
 midPoint :: Expr -> Expr -> Expr
 midPoint a b = OP "/" (OP "+" a b) (CONST 2)
@@ -312,21 +323,28 @@ addIntersectDecl var arg1 arg2 = do
     addExpr $ pointInBox (newx, newy)
     
 --taken from wikipedia line-line intersection page
+getIntersectPtExprs :: (State.Variable, State.Variable)
+                    -> (Expr, Expr, Expr, Expr)
+                    -> (Expr, Expr, Expr, Expr)
+                    -> (Expr, Expr)
+getIntersectPtExprs (newx, newy) (x1, y1, x2, y2) (x3, y3, x4, y4) = (xconstr, yconstr) where
+    denom = OP "-" (OP "*" (OP "-" x1 x2) (OP "-" y3 y4))
+                   (OP "*" (OP "-" y1 y2) (OP "-" x3 x4))
+    part1 = OP "-" (OP "*" x1 y2) (OP "*" y1 x2)
+    part2 = OP "-" (OP "*" x3 y4) (OP "*" x4 y3)
+    xconstr = OP "=" (OP "*" (VAR newx) denom)
+                     (OP "-" (OP "*" part1 (OP "-" x3 x4))
+                             (OP "*" (OP "-" x1 x2) part2))
+    yconstr = OP "=" (OP "*" (VAR newy) denom)
+                     (OP "-" (OP "*" part1 (OP "-" y3 y4))
+                             (OP "*" (OP "-" y1 y2) part2))
+
 getIntersectPt :: (State.Variable, State.Variable)
                -> (State.Variable, State.Variable, State.Variable, State.Variable)
                -> (State.Variable, State.Variable, State.Variable, State.Variable)
                -> (Expr, Expr)
-getIntersectPt (newx, newy) (x1, y1, x2, y2) (x3, y3, x4, y4) = (xconstr, yconstr) where
-    denom = OP "-" (OP "*" (OP "-" (VAR x1) (VAR x2)) (OP "-" (VAR y3) (VAR y4)))
-                   (OP "*" (OP "-" (VAR y1) (VAR y2)) (OP "-" (VAR x3) (VAR x4)))
-    part1 = OP "-" (OP "*" (VAR x1) (VAR y2)) (OP "*" (VAR y1) (VAR x2))
-    part2 = OP "-" (OP "*" (VAR x3) (VAR y4)) (OP "*" (VAR x4) (VAR y3))
-    xconstr = OP "=" (OP "*" (VAR newx) denom)
-                     (OP "-" (OP "*" part1 (OP "-" (VAR x3) (VAR x4)))
-                             (OP "*" (OP "-" (VAR x1) (VAR x2)) part2))
-    yconstr = OP "=" (OP "*" (VAR newy) denom)
-                     (OP "-" (OP "*" part1 (OP "-" (VAR y3) (VAR y4)))
-                             (OP "*" (OP "-" (VAR y1) (VAR y2)) part2))
+getIntersectPt v (x1, y1, x2, y2) (x3, y3, x4, y4) =
+    getIntersectPtExprs v (VAR x1, VAR y1, VAR x2, VAR y2) (VAR x3, VAR y3, VAR x4, VAR y4)
 
 pointInBox :: (State.Variable, State.Variable) -> Expr
 pointInBox (x, y) = OP "and" (OP "and" (OP ">=" (VAR x) (CONST 0))
