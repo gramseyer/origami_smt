@@ -1,0 +1,16 @@
+L1 = fold1 RT LB
+L2 = fold1 RB LT
+
+Lside = fold1 RB RT
+Ltop = fold1 LB RB
+
+L3 = fold3 L1 L2
+L4 = fold3 L2 L1
+L5 = nfold3 L1 L2
+
+assert parallel Lside L3
+assert parallel Ltop L4
+
+;should be independently sat
+assert parallel Lside L5
+;assert parallel Ltop L5
