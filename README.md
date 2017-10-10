@@ -1,8 +1,8 @@
-##Language Specification
+## Language Specification
 
 ```<identifier> ::= [a-zA-Z0-9]+
 
-; each fold corresponds to one of the HJ Axioms.
+; Each fold corresponds to one of the HJ Axioms.
 ; O3 has 2 solutions.  Here, when there are two solutions (arg1 and arg2, lines, intersect),
 ; the solution given is the line running through the intersection equal to the shortest
 ; counterclockwise rotation of line1.  For the other fold, simply reverse the argument order.
