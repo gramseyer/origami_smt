@@ -83,6 +83,7 @@ declaration = try fold1dec
           <|> try fold5decSol1
           <|> try fold5decSol2
           <|> try nfold5dec
+          <|> try fold7dec
           <|> try intersectdec
     
 fold1dec :: Parser Declaration

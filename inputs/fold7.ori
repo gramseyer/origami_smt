@@ -1,0 +1,8 @@
+L1 = fold1 LT RB
+Lbot = fold1 LB RB
+L3 = fold3 L1 Lbot
+Ltop = fold1 LT RT
+Lmid = fold3 Ltop Lbot
+Lright = fold1 RT RB
+p = intersect Lright Lmid
+L7 = fold7 p L3 L1

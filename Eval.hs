@@ -47,6 +47,7 @@ addDecl (Parser.DEC_FOLD5_SOL2 var pointMove pointCenter line)
                                           = addFold5DeclSol2 var pointMove pointCenter line
 addDecl (Parser.DEC_NFOLD5 var pointMove pointCenter line)
                                           = addNFold5Decl var pointMove pointCenter line
+addDecl (Parser.DEC_FOLD7 var point l1 l2) = addFold7Decl var point l1 l2
 addDecl (Parser.DEC_INTERSECT var arg1 arg2) = addIntersectDecl var arg1 arg2
 addDecl _ = error "TODO"
 
