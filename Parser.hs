@@ -10,7 +10,10 @@ module Parser(
                  DEC_NFOLD5,
                  DEC_FOLD6,
                  DEC_INTERSECT),
-    Constraint (CN_PARALLEL),
+    Constraint (CN_AND,
+                CN_OR,
+                CN_NEG,
+                CN_PARALLEL),
     Identifier,
     parseProgram) where
 
@@ -35,7 +38,10 @@ data Declaration = DEC_FOLD1 Identifier Identifier Identifier
                  | DEC_INTERSECT Identifier Identifier Identifier
     deriving Show
 
-data Constraint = CN_PARALLEL Identifier Identifier
+data Constraint = CN_AND Constraint Constraint
+                | CN_OR Constraint Constraint
+                | CN_NEG Constraint
+                | CN_PARALLEL Identifier Identifier
     deriving Show
 
 type Identifier = String
@@ -111,20 +117,60 @@ intersectdec :: Parser Declaration
 intersectdec = decmaker "intersect" DEC_INTERSECT
 
 constraint :: Parser Constraint
-constraint = constraintParallel
+constraint = do
+    string "ASSERT"
+    cn <- constraintInt
+    endl
+    many ignore
+    return cn
 
+constraintInt :: Parser Constraint
+constraintInt = try constraintAnd
+            <|> try constraintOr
+            <|> try constraintNeg
+            <|> constraintParallel
+
+constraintAnd :: Parser Constraint
+constraintAnd = constraintGen "AND" CN_AND
+
+constraintOr :: Parser Constraint
+constraintOr = constraintGen "OR" CN_OR
+
+constraintGen :: String -> (Constraint -> Constraint -> Constraint) ->  Parser Constraint
+constraintGen str constructor = do
+    string str
+    whitespace
+    char '('
+    whitespace
+    cn1 <- constraint
+    char ')'
+    whitespace
+    char '('
+    whitespace
+    cn2 <- constraint
+    char ')'
+    whitespace
+    return $ constructor cn1 cn2
+
+constraintNeg :: Parser Constraint
+constraintNeg = do
+    string "NOT"
+    whitespace
+    char '('
+    whitespace
+    cn <- constraint
+    char ')'
+    whitespace
+    return $ CN_NEG cn
+    
 constraintParallel :: Parser Constraint
 constraintParallel = do
-    string "assert"
-    whitespace
-    string "parallel"
+    string "isParallel"
     whitespace
     var1 <- identifier
     whitespace
     var2 <- identifier
     whitespace
-    endl
-    many ignore
     return $ CN_PARALLEL var1 var2
 
 decmaker :: String -> (Identifier -> Identifier -> Identifier -> Declaration) -> Parser Declaration
