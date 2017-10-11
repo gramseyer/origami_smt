@@ -31,4 +31,4 @@
                ; more primitives...
 <var_decl> ::= "VAR" <identifier>
 
-<program> ::= <var_decl>* <fold_decl>* <constraint>*
+<program> ::= <var_decl>* <assignment>* <constraint>*
