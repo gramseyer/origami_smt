@@ -29,7 +29,7 @@ import System.Environment
 import Data.Map as Map
 import Data.List as List
 
-data Program = PROGRAM [VarDeclaration] [Declaration] [Constraint]
+data Program = PROGRAM [VarDeclaration] [Declaration] [Constraint] [Constraint]
     deriving Show
 
 newtype VarDeclaration = VAR_DECL Identifier
@@ -75,9 +75,10 @@ program = do
     many ignore
     vardeclarations <- many vardeclaration
     declarations <- many declaration
-    constraints <- many constraint
+    constructions <- many construct
+    assertions <- many assert
     eof
-    return $ PROGRAM vardeclarations declarations constraints
+    return $ PROGRAM vardeclarations declarations constructions assertions
 
 vardeclaration :: Parser VarDeclaration
 vardeclaration = do
@@ -156,8 +157,17 @@ ternarydecmaker str cons = do
 intersectdec :: Parser Declaration
 intersectdec = decmaker "intersect" DEC_INTERSECT
 
-constraint :: Parser Constraint
-constraint = do
+construct :: Parser Constraint
+construct = do
+    string "CONSTRUCT"
+    whitespace
+    cn <- constraintInt
+    endl
+    many ignore
+    return cn
+
+assert :: Parser Constraint
+assert= do
     string "ASSERT"
     whitespace
     cn <- constraintInt
@@ -186,12 +196,12 @@ constraintGen str constructor = do
     whitespace
     char '('
     whitespace
-    cn1 <- constraint
+    cn1 <- constraintInt
     char ')'
     whitespace
     char '('
     whitespace
-    cn2 <- constraint
+    cn2 <- constraintInt
     char ')'
     whitespace
     return $ constructor cn1 cn2
@@ -202,7 +212,7 @@ constraintNeg = do
     whitespace
     char '('
     whitespace
-    cn <- constraint
+    cn <- constraintInt
     char ')'
     whitespace
     return $ CN_NEG cn

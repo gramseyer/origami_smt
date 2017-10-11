@@ -6,8 +6,11 @@ import qualified Data.Map as Map
 import Data.List as List
 
 computeTransform :: Parser.Program -> TransformState ()
-computeTransform (Parser.PROGRAM vardecls decls constrs) = 
-    executeVarDecls vardecls >> executeDecls decls >> executeConstraints constrs
+computeTransform (Parser.PROGRAM vardecls decls constructConstraints assertConstraints) = 
+    executeVarDecls vardecls 
+        >> executeDecls decls
+        >> executeConstructions constructConstraints
+        >> executeConstraints assertConstraints
 
 executeVarDecls :: [Parser.VarDeclaration] -> TransformState ()
 executeVarDecls = List.foldr ((>>).addVarDecl) State.doNothing
@@ -15,8 +18,11 @@ executeVarDecls = List.foldr ((>>).addVarDecl) State.doNothing
 executeDecls :: [Parser.Declaration] -> TransformState ()
 executeDecls = List.foldr ((>>) . addDecl) State.doNothing
 
+executeConstructions :: [Parser.Constraint] -> TransformState ()
+executeConstructions = List.foldr ((>>) . (addConstraint addExpr)) State.doNothing
+
 executeConstraints :: [Parser.Constraint] -> TransformState ()
-executeConstraints = List.foldr ((>>) . addConstraint) State.doNothing
+executeConstraints = List.foldr ((>>) . (addConstraint addConstraintExpr)) State.doNothing
 
 data Expr = OP String Expr Expr
           | VAR String
@@ -367,20 +373,20 @@ pointInBox (x, y) = OP "and" (OP "and" (OP ">=" (VAR x) (CONST 0))
                              (OP "and" (OP ">=" (VAR y) (CONST 0))
                                        (OP "<=" (VAR y) (CONST 1)))
 
-addConstraint :: Parser.Constraint -> TransformState ()
-addConstraint (Parser.CN_PARALLEL var1 var2) = do
+addConstraint :: (Expr -> TransformState ()) -> Parser.Constraint -> TransformState ()
+addConstraint logExpr (Parser.CN_PARALLEL var1 var2) = do
     (x1, y1, x2, y2) <- State.getLineVars var1
     (a1, b1, a2, b2) <- State.getLineVars var2
-    addConstraintExpr $ getParallelConstr(x1, y1, x2, y2) (a1, b1, a2, b2)
-addConstraint (Parser.CN_PERPENDICULAR var1 var2) = do
+    logExpr $ getParallelConstr(x1, y1, x2, y2) (a1, b1, a2, b2)
+addConstraint logExpr (Parser.CN_PERPENDICULAR var1 var2) = do
     l1 <- State.getLineVars var1
     l2 <- State.getLineVars var2
-    addConstraintExpr $ getPerpConstr l1 l2
-addConstraint (Parser.CN_COLINEAR varp varl) = do
+    logExpr $ getPerpConstr l1 l2
+addConstraint logExpr (Parser.CN_COLINEAR varp varl) = do
     p <- State.getPointVars varp
     l <- State.getLineVars varl
-    addConstraintExpr $ getColinearExpr p l
-addConstraint _ = error "TODO constraint unimplemented"
+    logExpr $ getColinearExpr p l
+addConstraint _ _ = error "TODO constraint unimplemented"
 
 getParallelConstr :: (State.Variable, State.Variable, State.Variable, State.Variable)
                   -> (State.Variable, State.Variable, State.Variable, State.Variable)

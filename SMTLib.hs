@@ -4,12 +4,12 @@ import State
 import qualified Data.List as List
 
 makeSMTLibStr :: Bool -> State.Transform -> String
-makeSMTLibStr b (_, _, clauses, constraintClauses, freshVars) =
+makeSMTLibStr b t =
     startupStr
-    ++ makeVarDecls freshVars
+    ++ makeVarDecls (State.freshVarCnt t)
     ++ cornerVarDecls
-    ++ List.concatMap (makeClause False) clauses
-    ++ makeClause b (unifyClauses constraintClauses)
+    ++ List.concatMap (makeClause False) (State.constructionClauses t)
+    ++ makeClause b (unifyClauses (State.assertionClauses t))
     ++ endStr
 
 startupStr :: String

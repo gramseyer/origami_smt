@@ -1,6 +1,6 @@
 module State (
     TransformState,
-    Transform,
+    Transform (constructionClauses, assertionClauses, freshVarCnt),
     Variable,
     Clause,
     execTransform,
@@ -21,11 +21,11 @@ import qualified Data.List as List
 
 type TransformState a = State Transform a
 
-type Transform = (Map.Map Parser.Identifier (Variable, Variable), --(x,y)
-                  Map.Map Parser.Identifier (Variable, Variable, Variable, Variable), --(x1, y1, x2, y2)
-                  [Clause],
-                  [Clause],
-                  Int)
+data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable), --(x,y)
+                     lineMap :: Map.Map Parser.Identifier (Variable, Variable, Variable, Variable), --(x1, y1, x2, y2)
+                     constructionClauses :: [Clause],
+                     assertionClauses :: [Clause],
+                     freshVarCnt :: Int }
 
 type Clause = String
 type Variable = String
@@ -37,24 +37,26 @@ cornerVars = [("LB", ("_left", "_bottom")),
               ("LT", ("_left", "_top"))]
 
 initialState :: Transform
-initialState = (Map.fromList cornerVars, Map.empty, 
-                ["(= _right 1)", "(= _left 0)", "(= _top 1)", "(= _bottom 0)" ], [], 0)
+initialState = T { pointMap = Map.fromList cornerVars,
+                   lineMap = Map.empty, 
+                   constructionClauses = ["(= _right 1)", "(= _left 0)", "(= _top 1)", "(= _bottom 0)" ],
+                   assertionClauses = [],
+                   freshVarCnt =  0 }
 
 execTransform :: TransformState a -> Transform
 execTransform st = execState st initialState 
 
 getPointMap :: TransformState (Map.Map Parser.Identifier (Variable, Variable))
-getPointMap = state $ \(ptMap, lineMap, clauses, conClauses, freshCnt)
-                          -> (ptMap, (ptMap, lineMap, clauses, conClauses, freshCnt))
+getPointMap = state $ \t -> (pointMap t, t)
 
 putPointMap :: Map.Map Parser.Identifier (Variable, Variable) -> TransformState ()
-putPointMap ptMap = state $ \(_, lineMap, clauses, conClauses, freshCnt) -> ((), (ptMap, lineMap, clauses, conClauses, freshCnt))
+putPointMap ptMap = state $ \t -> ((), t {pointMap = ptMap})
 
 getLineMap :: TransformState (Map.Map Parser.Identifier (Variable, Variable, Variable, Variable))
-getLineMap = state $ \(ptMap, lineMap, clauses, conClauses, freshCnt) -> (lineMap, (ptMap, lineMap, clauses, conClauses, freshCnt))
+getLineMap = state $ \t -> (lineMap t, t)
 
 putLineMap :: Map.Map Parser.Identifier (Variable, Variable, Variable, Variable) -> TransformState ()
-putLineMap lineMap = state $ \(ptMap, _, clauses, conClauses, freshCnt) -> ((), (ptMap, lineMap, clauses, conClauses, freshCnt))
+putLineMap lineMap = state $ \t -> ((), t { lineMap = lineMap })
 
 getPointVars :: Parser.Identifier -> TransformState (Variable, Variable)
 getPointVars iden = do
@@ -71,9 +73,11 @@ getLineVars iden = do
         Nothing -> error $"undefined line " ++ iden
 
 freshVarPair :: TransformState (Variable, Variable)
-freshVarPair = state $
-    \(ptMap, lineMap, clauses, conClauses, freshCnt)
-        -> (("x" ++ show freshCnt, "y" ++ show freshCnt), (ptMap, lineMap, clauses, conClauses, freshCnt + 1))
+freshVarPair = state $ \t 
+    -> (("x" ++ show (freshVarCnt t), "y" ++ show (freshVarCnt t)), t { freshVarCnt = (freshVarCnt t) + 1 })
+
+--    \(ptMap, lineMap, clauses, conClauses, freshCnt)
+  --      -> (("x" ++ show freshCnt, "y" ++ show freshCnt), (ptMap, lineMap, clauses, conClauses, freshCnt + 1))
 
 
 addPoint :: Parser.Identifier -> TransformState (Variable, Variable)
@@ -98,11 +102,10 @@ addLine iden = do
             return (x1, y1, x2, y2)
 
 addClause :: Clause -> TransformState ()
-addClause c = state $ \(ptMap, lineMap, clauses, conClauses, freshCnt) -> ((), (ptMap, lineMap, c:clauses, conClauses, freshCnt))
+addClause c = state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) })
 
 addConstraintClause :: Clause -> TransformState ()
-addConstraintClause c = state $ \(ptMap, lineMap, clauses, constraintClauses, freshCnt)
-                                    -> ((), (ptMap, lineMap, clauses, c:constraintClauses, freshCnt))
+addConstraintClause c = state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) })
 
 doNothing :: TransformState ()
 doNothing = state $ \s -> ((), s)
