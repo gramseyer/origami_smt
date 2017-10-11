@@ -24,7 +24,7 @@ processArgs (name:"--negate":[]) = do
     putStrLn $ "Compiling file \"" ++ name ++ "\" to negated form"
     return (name, True)
 processArgs _ = do
-    putStrLn "Usage: ./Main <filename"
+    putStrLn "Usage: ./Main <filename> <--negate>"
     error "invalid usage"
 
 outputFile :: (String, String, Bool) -> IO ()
