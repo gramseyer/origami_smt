@@ -22,10 +22,13 @@
 
 <assignment> ::= <identifier> "=" <fold_decl>
 
-<assert> ::= "assert" <constraint>
+<assert> ::= "ASSERT" <constraint>
 
 <constraint> ::= "AND" '(' <constraint> ')' '(' <constraint> ')'
                | "OR" '(' <constraint> ')' '(' <constraint> ')'
                | "NEG" '(' <constraint> ')'
                | "parallel" <identifier> <identifier>
                ; more primitives...
+<var_decl> ::= "VAR" <identifier>
+
+<program> ::= <var_decl>* <assignment>* <constraint>*
