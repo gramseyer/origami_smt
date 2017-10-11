@@ -73,7 +73,7 @@ getLineVars iden = do
 freshVarPair :: TransformState (Variable, Variable)
 freshVarPair = state $
     \(ptMap, lineMap, clauses, conClauses, freshCnt)
-        -> (("x" ++ (show freshCnt), "y" ++ (show freshCnt)), (ptMap, lineMap, clauses, conClauses, freshCnt + 1))
+        -> (("x" ++ show freshCnt, "y" ++ show freshCnt), (ptMap, lineMap, clauses, conClauses, freshCnt + 1))
 
 
 addPoint :: Parser.Identifier -> TransformState (Variable, Variable)

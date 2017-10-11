@@ -17,10 +17,10 @@ loadFile (str, b) = do
     return (str ++ ".smt", contents, b)
 
 processArgs :: [String] -> IO (String, Bool)
-processArgs (name:[]) = do
+processArgs [name] = do
     putStrLn $ "Compiling file \"" ++ name ++ "\""
     return (name, False)
-processArgs (name:"--negate":[]) = do
+processArgs [name,"--negate"] = do
     putStrLn $ "Compiling file \"" ++ name ++ "\" to negated form"
     return (name, True)
 processArgs _ = do
@@ -28,8 +28,7 @@ processArgs _ = do
     error "invalid usage"
 
 outputFile :: (String, String, Bool) -> IO ()
-outputFile (filename, str, b) = do
-    writeFile filename $ run str b
+outputFile (filename, str, b) = writeFile filename $ run str b
 
 main :: IO ()
 main = getArgs >>= processArgs >>= loadFile >>= outputFile

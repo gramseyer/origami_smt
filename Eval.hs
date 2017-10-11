@@ -7,16 +7,16 @@ import Data.List as List
 
 computeTransform :: Parser.Program -> TransformState ()
 computeTransform (Parser.PROGRAM vardecls decls constrs) = 
-    (executeVarDecls vardecls) >> (executeDecls decls) >> (executeConstraints constrs)
+    executeVarDecls vardecls >> executeDecls decls >> executeConstraints constrs
 
 executeVarDecls :: [Parser.VarDeclaration] -> TransformState ()
-executeVarDecls vardecls = List.foldr (>>) State.doNothing (List.map addVarDecl vardecls)
+executeVarDecls = List.foldr ((>>).addVarDecl) State.doNothing
 
 executeDecls :: [Parser.Declaration] -> TransformState ()
-executeDecls decls = List.foldr (>>) State.doNothing (List.map addDecl decls)
+executeDecls = List.foldr ((>>) . addDecl) State.doNothing
 
 executeConstraints :: [Parser.Constraint] -> TransformState ()
-executeConstraints constrs = List.foldr (>>) State.doNothing (List.map addConstraint constrs)
+executeConstraints = List.foldr ((>>) . addConstraint) State.doNothing
 
 data Expr = OP String Expr Expr
           | VAR String
@@ -26,12 +26,14 @@ data Expr = OP String Expr Expr
 
 translateExpr :: Expr -> String
 translateExpr (VAR v)        = v
-translateExpr (OP str e1 e2) = "(" ++ str ++ " " ++ (translateExpr e1) ++ " " ++ (translateExpr e2) ++ ")"
-translateExpr (SQR expr)     = "(*" ++ (translateExpr expr) ++ (translateExpr expr) ++ ")"
-translateExpr (CONST x)      = if x>=0 then (show x) else ("(- " ++ (show (abs x)) ++ ")")
-translateExpr (NEG expr)     = "(not " ++ (translateExpr expr) ++ ")"
+translateExpr (OP str e1 e2) = "(" ++ str ++ " " ++ translateExpr e1 ++ " " ++ translateExpr e2 ++ ")"
+translateExpr (SQR expr)     = "(*" ++ translateExpr expr ++ translateExpr expr ++ ")"
+translateExpr (CONST x)      = if x >= 0 then show x else "(- " ++ show (abs x) ++ ")"
+translateExpr (NEG expr)     = "(not " ++ translateExpr expr ++ ")"
 
-distance :: (State.Variable, State.Variable) -> (State.Variable, State.Variable) -> Expr
+distance :: (State.Variable, State.Variable)
+         -> (State.Variable, State.Variable)
+         -> Expr
 distance (x1, y1) (x2, y2) = OP "+" (SQR (OP "-" (VAR x1) (VAR x2))) (SQR (OP "-" (VAR y1) (VAR y2)))
 
         -- v1x, v1y, v2x, v2y
@@ -45,19 +47,19 @@ addVarDecl (Parser.VAR_DECL var) = do
     return ()
 
 addDecl :: Parser.Declaration -> TransformState ()
-addDecl (Parser.DEC_FOLD1 var arg1 arg2)  = addFold1Decl var arg1 arg2
-addDecl (Parser.DEC_FOLD2 var arg1 arg2)  = addFold2Decl var arg1 arg2
-addDecl (Parser.DEC_FOLD3 var arg1 arg2)  = addFold3Decl var arg1 arg2
-addDecl (Parser.DEC_NFOLD3 var arg1 arg2) = addNFold3Decl var arg1 arg2
-addDecl (Parser.DEC_FOLD4 var arg1 arg2)  = addFold4Decl var arg1 arg2
+addDecl (Parser.DEC_FOLD1 var arg1 arg2)      = addFold1Decl var arg1 arg2
+addDecl (Parser.DEC_FOLD2 var arg1 arg2)      = addFold2Decl var arg1 arg2
+addDecl (Parser.DEC_FOLD3 var arg1 arg2)      = addFold3Decl var arg1 arg2
+addDecl (Parser.DEC_NFOLD3 var arg1 arg2)     = addNFold3Decl var arg1 arg2
+addDecl (Parser.DEC_FOLD4 var arg1 arg2)      = addFold4Decl var arg1 arg2
 addDecl (Parser.DEC_FOLD5_SOL1 var pointMove pointCenter line)
-                                          = addFold5DeclSol1 var pointMove pointCenter line
+                                              = addFold5DeclSol1 var pointMove pointCenter line
 addDecl (Parser.DEC_FOLD5_SOL2 var pointMove pointCenter line)
-                                          = addFold5DeclSol2 var pointMove pointCenter line
+                                              = addFold5DeclSol2 var pointMove pointCenter line
 addDecl (Parser.DEC_NFOLD5 var pointMove pointCenter line)
-                                          = addNFold5Decl var pointMove pointCenter line
-addDecl (Parser.DEC_FOLD7 var point l1 l2) = addFold7Decl var point l1 l2
-addDecl (Parser.DEC_INTERSECT var arg1 arg2) = addIntersectDecl var arg1 arg2
+                                              = addNFold5Decl var pointMove pointCenter line
+addDecl (Parser.DEC_FOLD7 var point l1 l2)    = addFold7Decl var point l1 l2
+addDecl (Parser.DEC_INTERSECT var arg1 arg2)  = addIntersectDecl var arg1 arg2
 addDecl _ = error "TODO"
 
 addFold1Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
@@ -78,9 +80,9 @@ addFold2Decl var arg1 arg2 = do
     (x1, y1, x2, y2) <- State.addLine var
     (a1, b1) <- State.getPointVars arg1
     (a2, b2) <- State.getPointVars arg2
-    addExpr $ (OP "=" (distance (x1, y1) (a1, b1)) (distance (x1, y1) (a2, b2)))
-    addExpr $ (OP "=" (distance (x2, y2) (a1, b1)) (distance (x2, y2) (a2, b2)))
-    addExpr $ (OP ">" (distance (x1, y1) (x2, y2)) (CONST 0))
+    addExpr $ OP "=" (distance (x1, y1) (a1, b1)) (distance (x1, y1) (a2, b2))
+    addExpr $ OP "=" (distance (x2, y2) (a1, b1)) (distance (x2, y2) (a2, b2))
+    addExpr $ OP ">" (distance (x1, y1) (x2, y2)) (CONST 0)
 
 addFold3Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold3Decl var arg1 arg2 = do
@@ -90,10 +92,10 @@ addFold3Decl var arg1 arg2 = do
     let parallelConstr = getParallelConstr (a1, b2, a2, b2) (c1, d1, c2, d2)
     let nonParallelConstr = NEG parallelConstr
     let (intX, intY) = getIntersectPt (x1, y1) (a1, b1, a2, b2) (c1, d1, c2, d2)
-    let intNorm1x = (OP "/" (OP "-" (VAR a2) (VAR a1)) (distance (a1, b1) (a2, b2)))
-    let intNorm1y = (OP "/" (OP "-" (VAR b2) (VAR b1)) (distance (a1, b1) (a2, b2)))
-    let intNorm2x = (OP "/" (OP "-" (VAR c2) (VAR c1)) (distance (c1, d1) (c2, d2)))
-    let intNorm2y = (OP "/" (OP "-" (VAR d2) (VAR d1)) (distance (c1, d1) (c2, d2)))
+    let intNorm1x = OP "/" (OP "-" (VAR a2) (VAR a1)) (distance (a1, b1) (a2, b2))
+    let intNorm1y = OP "/" (OP "-" (VAR b2) (VAR b1)) (distance (a1, b1) (a2, b2))
+    let intNorm2x = OP "/" (OP "-" (VAR c2) (VAR c1)) (distance (c1, d1) (c2, d2))
+    let intNorm2y = OP "/" (OP "-" (VAR d2) (VAR d1)) (distance (c1, d1) (c2, d2))
     let mpdX = midPoint intNorm1x intNorm2x
     let mpdY = midPoint intNorm1y intNorm2y
     let mpdX' = midPoint (OP "*" (CONST (-1)) intNorm1x) intNorm1y
@@ -138,10 +140,10 @@ addNFold3Decl var arg1 arg2 = do
     let parallelConstr = getParallelConstr (a1, b1, a2, b2) (c1, d1, c2, d2)
     let nonParallelConstr = NEG parallelConstr
     let (intX, intY) = getIntersectPt (x1, y1) (a1, b1, a2, b2) (c1, d1, c2, d2)
-    let intNorm1x = (OP "/" (OP "-" (VAR a2) (VAR a1)) (distance (a1, b1) (a2, b2)))
-    let intNorm1y = (OP "/" (OP "-" (VAR b2) (VAR b1)) (distance (a1, b1) (a2, b2)))
-    let intNorm2x = (OP "/" (OP "-" (VAR c2) (VAR c1)) (distance (c1, d1) (c2, d2)))
-    let intNorm2y = (OP "/" (OP "-" (VAR d2) (VAR d1)) (distance (c1, d1) (c2, d2)))
+    let intNorm1x = OP "/" (OP "-" (VAR a2) (VAR a1)) (distance (a1, b1) (a2, b2))
+    let intNorm1y = OP "/" (OP "-" (VAR b2) (VAR b1)) (distance (a1, b1) (a2, b2))
+    let intNorm2x = OP "/" (OP "-" (VAR c2) (VAR c1)) (distance (c1, d1) (c2, d2))
+    let intNorm2y = OP "/" (OP "-" (VAR d2) (VAR d1)) (distance (c1, d1) (c2, d2))
     let mpdX = midPoint intNorm1x intNorm2x
     let mpdY = midPoint intNorm1y intNorm2y
     let mpdX' = midPoint (OP "*" (CONST (-1)) intNorm1x) intNorm1y
@@ -398,7 +400,7 @@ crossProdExpr (vx, vy) (wx, wy) = OP "-" (OP "*" vx wy) (OP "*" vy wx)
 
 
 addExpr :: Expr -> TransformState ()
-addExpr = (State.addClause).translateExpr
+addExpr = State.addClause.translateExpr
 
 addConstraintExpr :: Expr -> TransformState ()
-addConstraintExpr = (State.addConstraintClause).translateExpr
+addConstraintExpr = State.addConstraintClause.translateExpr

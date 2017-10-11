@@ -32,7 +32,7 @@ import Data.List as List
 data Program = PROGRAM [VarDeclaration] [Declaration] [Constraint]
     deriving Show
 
-data VarDeclaration = VAR_DECL Identifier
+newtype VarDeclaration = VAR_DECL Identifier
     deriving Show
 
 -- first arg is the name of the variable
