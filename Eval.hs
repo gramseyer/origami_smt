@@ -376,6 +376,10 @@ addConstraint (Parser.CN_PERPENDICULAR var1 var2) = do
     l1 <- State.getLineVars var1
     l2 <- State.getLineVars var2
     addConstraintExpr $ getPerpConstr l1 l2
+addConstraint (Parser.CN_COLINEAR varp varl) = do
+    p <- State.getPointVars varp
+    l <- State.getLineVars varl
+    addConstraintExpr $ getColinearExpr p l
 addConstraint _ = error "TODO constraint unimplemented"
 
 getParallelConstr :: (State.Variable, State.Variable, State.Variable, State.Variable)
@@ -394,6 +398,13 @@ getPerpConstr (x1, y1, x2, y2) (a1, b1, a2, b2) =  --yb=-xa
            (OP "*" (OP "*" (OP "-" (CONST 0) (CONST 1))
                            (OP "-" (VAR x2) (VAR x1)))
                    (OP "-" (VAR a2) (VAR a1)))
+
+getColinearExpr :: (State.Variable, State.Variable)
+                -> (State.Variable, State.Variable, State.Variable, State.Variable)
+                -> Expr
+getColinearExpr (a, b) (x1, y1, x2, y2) =
+    OP "="(OP "*" (OP "-" (VAR x2) (VAR x1)) (OP "-" (VAR b) (VAR y1)))
+          (OP "*" (OP "-" (VAR y2) (VAR y1)) (OP "-" (VAR a) (VAR x1)))
 
 crossProdExpr :: (Expr, Expr) -> (Expr, Expr) -> Expr
 crossProdExpr (vx, vy) (wx, wy) = OP "-" (OP "*" vx wy) (OP "*" vy wx)
