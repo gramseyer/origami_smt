@@ -69,6 +69,9 @@ addFold1Decl var arg1 arg2 = do
     addExpr $ OP "=" (VAR b1) (VAR y1)
     addExpr $ OP "=" (VAR a2) (VAR x2)
     addExpr $ OP "=" (VAR b2) (VAR y2)
+    --sanity check
+    addExpr $ NEG (OP "and" (OP "=" (VAR x1) (VAR x2))
+                            (OP "=" (VAR y1) (VAR y2)))
 
 addFold2Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold2Decl var arg1 arg2 = do
@@ -177,10 +180,10 @@ addFold4Decl var arg1 arg2 = do
     let preRotateY = OP "-" (VAR d2) (VAR d1)
     let postRotateX = preRotateY
     let postRotateY = OP "-" (CONST 0) preRotateX
-    let eqAssert = OP "and" (OP "=" (VAR x2) postRotateX)
-                            (OP "=" (VAR y2) postRotateY)
-    let eqAssert' = OP "and" (OP "=" (VAR x1) (VAR c1))
-                             (OP "=" (VAR y1) (VAR d1))
+    let eqAssert = OP "and" (OP "=" (VAR x2) (OP "+" postRotateX (VAR a)))
+                            (OP "=" (VAR y2) (OP "+" postRotateY (VAR b)))
+    let eqAssert' = OP "and" (OP "=" (VAR x1) (VAR a))
+                             (OP "=" (VAR y1) (VAR b))
     addExpr eqAssert
     addExpr eqAssert'    
 
@@ -366,11 +369,11 @@ addConstraint :: Parser.Constraint -> TransformState ()
 addConstraint (Parser.CN_PARALLEL var1 var2) = do
     (x1, y1, x2, y2) <- State.getLineVars var1
     (a1, b1, a2, b2) <- State.getLineVars var2
-    addExpr $ getParallelConstr(x1, y1, x2, y2) (a1, b1, a2, b2)
+    addConstraintExpr $ getParallelConstr(x1, y1, x2, y2) (a1, b1, a2, b2)
 addConstraint (Parser.CN_PERPENDICULAR var1 var2) = do
     l1 <- State.getLineVars var1
     l2 <- State.getLineVars var2
-    addExpr $ getPerpConstr l1 l2
+    addConstraintExpr $ getPerpConstr l1 l2
 addConstraint _ = error "TODO constraint unimplemented"
 
 getParallelConstr :: (State.Variable, State.Variable, State.Variable, State.Variable)
@@ -396,3 +399,6 @@ crossProdExpr (vx, vy) (wx, wy) = OP "-" (OP "*" vx wy) (OP "*" vy wx)
 
 addExpr :: Expr -> TransformState ()
 addExpr = (State.addClause).translateExpr
+
+addConstraintExpr :: Expr -> TransformState ()
+addConstraintExpr = (State.addConstraintClause).translateExpr
