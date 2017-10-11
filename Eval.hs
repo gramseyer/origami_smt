@@ -6,7 +6,11 @@ import qualified Data.Map as Map
 import Data.List as List
 
 computeTransform :: Parser.Program -> TransformState ()
-computeTransform (Parser.PROGRAM decls constrs) = (executeDecls decls) >> (executeConstraints constrs)
+computeTransform (Parser.PROGRAM vardecls decls constrs) = 
+    (executeVarDecls vardecls) >> (executeDecls decls) >> (executeConstraints constrs)
+
+executeVarDecls :: [Parser.VarDeclaration] -> TransformState ()
+executeVarDecls vardecls = List.foldr (>>) State.doNothing (List.map addVarDecl vardecls)
 
 executeDecls :: [Parser.Declaration] -> TransformState ()
 executeDecls decls = List.foldr (>>) State.doNothing (List.map addDecl decls)
@@ -34,6 +38,11 @@ distance (x1, y1) (x2, y2) = OP "+" (SQR (OP "-" (VAR x1) (VAR x2))) (SQR (OP "-
 dotprod :: Expr -> Expr -> Expr -> Expr -> Expr
 dotprod v1x v1y v2x v2y =
     OP "+" (OP "*" v1x v2x) (OP "*" v1y v2y)
+
+addVarDecl :: Parser.VarDeclaration -> TransformState ()
+addVarDecl (Parser.VAR_DECL var) = do
+    State.addPoint var
+    return ()
 
 addDecl :: Parser.Declaration -> TransformState ()
 addDecl (Parser.DEC_FOLD1 var arg1 arg2)  = addFold1Decl var arg1 arg2
@@ -358,6 +367,11 @@ addConstraint (Parser.CN_PARALLEL var1 var2) = do
     (x1, y1, x2, y2) <- State.getLineVars var1
     (a1, b1, a2, b2) <- State.getLineVars var2
     addExpr $ getParallelConstr(x1, y1, x2, y2) (a1, b1, a2, b2)
+addConstraint (Parser.CN_PERPENDICULAR var1 var2) = do
+    l1 <- State.getLineVars var1
+    l2 <- State.getLineVars var2
+    addExpr $ getPerpConstr l1 l2
+addConstraint _ = error "TODO constraint unimplemented"
 
 getParallelConstr :: (State.Variable, State.Variable, State.Variable, State.Variable)
                   -> (State.Variable, State.Variable, State.Variable, State.Variable)
@@ -368,6 +382,13 @@ getParallelConstr (x1, y1, x2, y2) (a1, b1, a2, b2) =
                            (OP "-" (VAR b2) (VAR b1)))
                    (OP "*" (OP "-" (VAR y2) (VAR y1))
                            (OP "-" (VAR a2) (VAR a1))))
+
+getPerpConstr (x1, y1, x2, y2) (a1, b1, a2, b2) =  --yb=-xa
+    OP "=" (OP "*" (OP "-" (VAR y2) (VAR y1))
+                   (OP "-" (VAR b2) (VAR b1)))
+           (OP "*" (OP "*" (OP "-" (CONST 0) (CONST 1))
+                           (OP "-" (VAR x2) (VAR x1)))
+                   (OP "-" (VAR a2) (VAR a1)))
 
 crossProdExpr :: (Expr, Expr) -> (Expr, Expr) -> Expr
 crossProdExpr (vx, vy) (wx, wy) = OP "-" (OP "*" vx wy) (OP "*" vy wx)

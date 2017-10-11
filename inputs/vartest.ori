@@ -1,0 +1,7 @@
+VAR x
+
+L1 = fold1 x RB
+L2 = fold4 RT L1
+
+ASSERT isPerpendicular L1 L2
+

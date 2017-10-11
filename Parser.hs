@@ -1,5 +1,6 @@
 module Parser(
     Program (PROGRAM),
+    VarDeclaration (VAR_DECL),
     Declaration (DEC_FOLD1,
                  DEC_FOLD2,
                  DEC_FOLD3,
@@ -28,7 +29,10 @@ import System.Environment
 import Data.Map as Map
 import Data.List as List
 
-data Program = PROGRAM [Declaration] [Constraint]
+data Program = PROGRAM [VarDeclaration] [Declaration] [Constraint]
+    deriving Show
+
+data VarDeclaration = VAR_DECL Identifier
     deriving Show
 
 -- first arg is the name of the variable
@@ -69,10 +73,21 @@ parseProgram str = case parse program "Invalid Parse" str of
 program :: Parser Program
 program = do
     many ignore
+    vardeclarations <- many vardeclaration
     declarations <- many declaration
     constraints <- many constraint
     eof
-    return $ PROGRAM declarations constraints
+    return $ PROGRAM vardeclarations declarations constraints
+
+vardeclaration :: Parser VarDeclaration
+vardeclaration = do
+    string "VAR"
+    whitespace
+    name <- identifier
+    whitespace
+    endl
+    many ignore
+    return $ VAR_DECL name
 
 declaration :: Parser Declaration
 declaration = try fold1dec
@@ -144,6 +159,7 @@ intersectdec = decmaker "intersect" DEC_INTERSECT
 constraint :: Parser Constraint
 constraint = do
     string "ASSERT"
+    whitespace
     cn <- constraintInt
     endl
     many ignore
