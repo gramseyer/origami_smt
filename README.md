@@ -24,6 +24,8 @@
 
 <assert> ::= "ASSERT" <constraint>
 
+<construct> ::= "CONSTRUCT" <constraint>
+
 <constraint> ::= "AND" '(' <constraint> ')' '(' <constraint> ')'
                | "OR" '(' <constraint> ')' '(' <constraint> ')'
                | "NEG" '(' <constraint> ')'
@@ -31,4 +33,10 @@
                ; more primitives...
 <var_decl> ::= "VAR" <identifier>
 
-<program> ::= <var_decl>* <assignment>* <constraint>*
+<program> ::= <var_decl>* <assignment>* <construct>* <assert>*
+
+```
+
+Use the construct constraints to assert that the free variables are in some configuration.
+
+When run with --negate, assertions are negated.  Then unsat means that the constructions (fold declarations and the CONSTRUCT constraints) imply the assertions.
