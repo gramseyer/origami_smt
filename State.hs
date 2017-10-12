@@ -76,10 +76,6 @@ freshVarPair :: TransformState (Variable, Variable)
 freshVarPair = state $ \t 
     -> (("x" ++ show (freshVarCnt t), "y" ++ show (freshVarCnt t)), t { freshVarCnt = (freshVarCnt t) + 1 })
 
---    \(ptMap, lineMap, clauses, conClauses, freshCnt)
-  --      -> (("x" ++ show freshCnt, "y" ++ show freshCnt), (ptMap, lineMap, clauses, conClauses, freshCnt + 1))
-
-
 addPoint :: Parser.Identifier -> TransformState (Variable, Variable)
 addPoint iden = do
     ptMap <- getPointMap
