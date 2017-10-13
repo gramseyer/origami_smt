@@ -44,7 +44,7 @@ data Declaration = DEC_FOLD1 Identifier Identifier Identifier
                  | DEC_FOLD5_SOL1 Identifier Identifier Identifier Identifier
                  | DEC_FOLD5_SOL2 Identifier Identifier Identifier Identifier
                  | DEC_NFOLD5 Identifier Identifier Identifier Identifier
-                 | DEC_FOLD6 Identifier Identifier Identifier Identifier Identifier
+                 | DEC_FOLD6 Int Int Identifier Identifier Identifier Identifier Identifier
                  | DEC_FOLD7 Identifier Identifier Identifier Identifier
                  | DEC_INTERSECT Identifier Identifier Identifier
     deriving Show
@@ -99,6 +99,7 @@ declaration = try fold1dec
           <|> try fold5decSol1
           <|> try fold5decSol2
           <|> try nfold5dec
+          <|> try fold6dec
           <|> try fold7dec
           <|> try intersectdec
     
@@ -127,6 +128,33 @@ fold5decSol2 = ternarydecmaker "fold5_sol2" DEC_FOLD5_SOL2
 nfold5dec :: Parser Declaration
 nfold5dec = ternarydecmaker "nfold5" DEC_NFOLD5
 
+fold6dec :: Parser Declaration
+fold6dec = try fold6dec3sol1
+       <|> try fold6dec3sol2
+       <|> try fold6dec3sol3
+       <|> try fold6dec2sol1
+       <|> try fold6dec2sol2
+       <|> try fold6dec1sol1
+
+fold6dec3sol1 :: Parser Declaration
+fold6dec3sol1 = quaternarydecmaker "fold6_1/3" $ DEC_FOLD6 3 1
+
+fold6dec3sol2 :: Parser Declaration
+fold6dec3sol2 = quaternarydecmaker "fold6_2/3" $ DEC_FOLD6 3 2
+
+fold6dec3sol3 :: Parser Declaration
+fold6dec3sol3 = quaternarydecmaker "fold6_3/3" $ DEC_FOLD6 3 3
+
+fold6dec2sol1 :: Parser Declaration
+fold6dec2sol1 = quaternarydecmaker "fold6_1/2" $ DEC_FOLD6 2 1
+
+fold6dec2sol2 :: Parser Declaration
+fold6dec2sol2 = quaternarydecmaker "fold6_2/2" $ DEC_FOLD6 2 2
+
+fold6dec1sol1 :: Parser Declaration
+fold6dec1sol1 = quaternarydecmaker "fold6_1/1" $ DEC_FOLD6 1 1
+
+
 fold7dec :: Parser Declaration
 fold7dec = ternarydecmaker "fold7" DEC_FOLD7
 
@@ -153,6 +181,33 @@ ternarydecmaker str cons = do
     endl
     many ignore
     return $ cons varname pointMove pointCenter line
+
+quaternarydecmaker :: String
+                    -> (Identifier
+                     -> Identifier
+                     -> Identifier
+                     -> Identifier
+                     -> Identifier
+                     -> Declaration)
+                    -> Parser Declaration
+quaternarydecmaker str cons = do
+    varname <- identifier
+    whitespace
+    char '='
+    whitespace
+    string str
+    whitespace
+    p1 <- identifier
+    whitespace
+    l1 <- identifier
+    whitespace
+    p2 <- identifier
+    whitespace
+    l2 <- identifier
+    whitespace
+    endl
+    many ignore
+    return $ cons varname p1 l1 p2 l2
 
 intersectdec :: Parser Declaration
 intersectdec = decmaker "intersect" DEC_INTERSECT

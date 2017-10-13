@@ -1,0 +1,14 @@
+Ltop = fold1 RT LT
+Lleft = fold1 LT LB
+Lbot = fold1 LB RB
+Lright = fold1 RB RT
+Lhoriz = fold3 Lbot Ltop
+Lvert = fold3 Lleft Lright
+pleft = intersect Lhoriz Lleft
+ptop = intersect Ltop Lvert
+pright = intersect Lright Lhoriz
+pbot = intersect Lbot Lvert
+L1 = fold1 pleft RT
+L2 = fold1 ptop LB
+L3 = fold6_1/1 pbot L1 pright L2
+

@@ -33,7 +33,7 @@ data Expr = OP String Expr Expr
 translateExpr :: Expr -> String
 translateExpr (VAR v)        = v
 translateExpr (OP str e1 e2) = "(" ++ str ++ " " ++ translateExpr e1 ++ " " ++ translateExpr e2 ++ ")"
-translateExpr (SQR expr)     = "(*" ++ translateExpr expr ++ translateExpr expr ++ ")"
+translateExpr (SQR expr)     = "(* " ++ translateExpr expr ++ " " ++  translateExpr expr ++ " )"
 translateExpr (CONST x)      = if x >= 0 then show x else "(- " ++ show (abs x) ++ ")"
 translateExpr (NEG expr)     = "(not " ++ translateExpr expr ++ ")"
 
@@ -50,6 +50,8 @@ dotprod v1x v1y v2x v2y =
 addVarDecl :: Parser.VarDeclaration -> TransformState ()
 addVarDecl (Parser.VAR_DECL var) = do
     State.addPoint var
+    p <- State.getPointVars var
+    addExpr $ pointInBox p
     return ()
 
 addDecl :: Parser.Declaration -> TransformState ()
@@ -64,9 +66,10 @@ addDecl (Parser.DEC_FOLD5_SOL2 var pointMove pointCenter line)
                                               = addFold5DeclSol2 var pointMove pointCenter line
 addDecl (Parser.DEC_NFOLD5 var pointMove pointCenter line)
                                               = addNFold5Decl var pointMove pointCenter line
+addDecl (Parser.DEC_FOLD6 sols solnum var p1 l1 p2 l2)
+                                              = addFold6Decl sols solnum var p1 l1 p2 l2
 addDecl (Parser.DEC_FOLD7 var point l1 l2)    = addFold7Decl var point l1 l2
 addDecl (Parser.DEC_INTERSECT var arg1 arg2)  = addIntersectDecl var arg1 arg2
-addDecl _ = error "TODO"
 
 addFold1Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold1Decl var arg1 arg2 = do
@@ -303,6 +306,170 @@ addNFold5Decl var pointMove pointOnLine line = do
     let centerExpr = OP "and" (OP "=" (VAR x1) (VAR xc)) (OP "=" (VAR y1) (VAR yc))
     let totalExpr = OP "and" centerExpr (OP "or" sol1Expr sol2Expr)
     addExpr totalExpr
+
+addFold6Decl :: Int
+             -> Int
+             -> Parser.Identifier
+             -> Parser.Identifier
+             -> Parser.Identifier
+             -> Parser.Identifier
+             -> Parser.Identifier
+             -> TransformState ()
+addFold6Decl 3 solNum var p1 l1 p2 l2 = do
+    (sol1, sol2, sol3) <- fold6Decl_get3sol var p1 l1 p2 l2
+    case solNum of
+        1 -> assignSolution sol1 var
+        2 -> assignSolution sol2 var
+        3 -> assignSolution sol3 var
+        _ -> error "invalid number of solutions in 3solution fold6 parse"
+addFold6Decl 2 solNum var p1 l1 p2 l2 = do
+    (sol1, sol2) <- fold6Decl_get2sol var p1 l1 p2 l2
+    case solNum of
+        1 -> assignSolution sol1 var
+        2 -> assignSolution sol2 var
+        _ -> error "invalid number of solutions in 2solution fold6 parse"
+addFold6Decl 1 solNum var p1 l1 p2 l2 = do
+    sol1 <- fold6Decl_get1sol var p1 l1 p2 l2
+    case solNum of
+        1 -> assignSolution sol1 var
+        _ -> error "invalid number of solutions in 1solution fold6 parse"
+
+addFold6Decl _ _ _ _ _ _ _ = error "invalid number of solutions to fold6"
+
+assignSolution :: (Expr, Expr, Expr, Expr) -> Parser.Identifier -> TransformState ()
+assignSolution (a1, b1, a2, b2) var = do
+    (x1, y1, x2, y2) <- State.addLine var
+    addExpr $ OP "=" (VAR x1) a1
+    addExpr $ OP "=" (VAR y1) b1
+    addExpr $ OP "=" (VAR x2) a2
+    addExpr $ OP "=" (VAR y2) b2
+
+fold6Decl_get3sol :: Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> TransformState ((Expr, Expr, Expr, Expr), (Expr,Expr, Expr, Expr), (Expr, Expr, Expr, Expr))
+fold6Decl_get3sol var p1 l1 p2 l2 = do
+    p1exprs <- getParametrizationsForParabola p1 l1
+    p2exprs <- getParametrizationsForParabola p2 l2
+    (t1, t1') <- State.freshVarPair
+    (t2, t2') <- State.freshVarPair
+    (t3, t3') <- State.freshVarPair
+    let t1exprs = constructParametrizationFunction t1 p1exprs
+    let t1'exprs = constructParametrizationFunction t1' p2exprs
+    let t2exprs = constructParametrizationFunction t2 p1exprs
+    let t2'exprs = constructParametrizationFunction t2' p2exprs
+    let t3exprs = constructParametrizationFunction t3 p1exprs
+    let t3'exprs = constructParametrizationFunction t3' p2exprs
+    requireMatchup t1exprs t1'exprs
+    requireMatchup t2exprs t2'exprs
+    requireMatchup t3exprs t3'exprs
+    addExpr $ OP "<" (VAR t3) (VAR t2)
+    addExpr $ OP "<" (VAR t2) (VAR t1)
+    return (getSoln t1exprs t1'exprs, getSoln t2exprs t2'exprs, getSoln t3exprs t3'exprs)
+
+fold6Decl_get2sol :: Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> TransformState ((Expr, Expr, Expr, Expr), (Expr,Expr, Expr, Expr))
+fold6Decl_get2sol var p1 l1 p2 l2 = do
+    p1exprs <- getParametrizationsForParabola p1 l1
+    p2exprs <- getParametrizationsForParabola p2 l2
+    (t1, t1') <- State.freshVarPair
+    (t2, t2') <- State.freshVarPair
+    let t1exprs = constructParametrizationFunction t1 p1exprs
+    let t1'exprs = constructParametrizationFunction t1' p2exprs
+    let t2exprs = constructParametrizationFunction t2 p1exprs
+    let t2'exprs = constructParametrizationFunction t2' p2exprs
+    requireMatchup t1exprs t1'exprs
+    requireMatchup t2exprs t2'exprs
+    addExpr $ OP "<" (VAR t2) (VAR t1)
+    return (getSoln t1exprs t1'exprs, getSoln t2exprs t2'exprs)
+
+fold6Decl_get1sol :: Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> Parser.Identifier
+                  -> TransformState (Expr,Expr, Expr, Expr)
+fold6Decl_get1sol var p1 l1 p2 l2 = do
+    p1exprs <- getParametrizationsForParabola p1 l1
+    p2exprs <- getParametrizationsForParabola p2 l2
+    (t1, t1') <- State.freshVarPair
+    let t1exprs = constructParametrizationFunction t1 p1exprs
+    let t1'exprs = constructParametrizationFunction t1' p2exprs
+    requireMatchup t1exprs t1'exprs
+    return (getSoln t1exprs t1'exprs)
+
+getSoln :: (a, a, a, a) -> (a, a, a, a) -> (a, a, a, a)
+getSoln (x1, y1, _, _) (x2, y2, _, _) = (x1, y1, x2, y2)
+
+getParametrizationsForParabola :: Parser.Identifier
+                               -> Parser.Identifier
+                               -> TransformState (Expr, Expr, Expr, Expr, State.Variable)
+getParametrizationsForParabola p l = do
+    (xc, yc) <- State.getPointVars p
+    (a1, b1, a2, b2) <- State.getLineVars l
+    (x0, y0) <- State.freshVarPair
+    addExpr $ OP "=" (OP "*" (VAR y0) (OP "-" (VAR b2) (VAR b1)))
+                     (OP "+" (OP "*" (VAR yc) (OP "-" (VAR b2) (VAR b1)))
+                             (OP "*" (OP "-" (VAR a2) (VAR a1))
+                                     (OP "-" (VAR a1) (VAR x0))))
+    addExpr $ OP "=" (OP "*" (VAR x0) (OP "-" (VAR b2) (VAR b1)))
+                     (OP "+" (OP "*" (VAR a1) (OP "-" (VAR b2) (VAR b1)))
+                             (OP "*" (OP "-" (VAR y0) (VAR b1))
+                                     (OP "-" (VAR a2) (VAR a1))))
+    
+    let crossProd = crossProdExpr (OP "-" (VAR a2) (VAR a1), OP "-" (VAR b2) (VAR b1)) (OP "-" (VAR xc) (VAR x0), OP "-" (VAR yc) (VAR y0))
+    (vx, vy) <- State.freshVarPair
+    addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (OP "=" (VAR vx) (OP "-" (VAR a2) (VAR a1))))
+                      (OP "and" (OP "<" crossProd (CONST 0)) (OP "=" (VAR vx) (OP "-" (VAR a1) (VAR a2))))
+
+    addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (OP "=" (VAR vy) (OP "-" (VAR b2) (VAR b1))))
+                      (OP "and" (OP "<" crossProd (CONST 0)) (OP "=" (VAR vy) (OP "-" (VAR b1) (VAR b2))))
+ 
+
+    (norm, z) <- State.freshVarPair
+    addExpr $ OP "=" (SQR (VAR norm)) (OP "+" (SQR (VAR vx)) (SQR (VAR vy)))
+    addExpr $ OP "=" (SQR (VAR z)) (OP "+" (SQR (OP "-" (VAR yc) (VAR y0))) (SQR (OP "-" (VAR xc) (VAR x0))))
+    
+    let normalizedVx = OP "/" (VAR vx) (VAR norm)
+    let normalizedVy = OP "/" (VAR vy) (VAR norm)
+
+    let xp = midPoint (VAR x0) (VAR xc)
+    let yp = midPoint (VAR y0) (VAR yc)
+
+    return $ (VAR x0, VAR y0, normalizedVx, normalizedVy, z)
+
+constructParametrizationFunction :: State.Variable
+                                 -> (Expr, Expr, Expr, Expr, State.Variable)
+                                 -> (Expr, Expr, Expr, Expr)
+constructParametrizationFunction t (x0, y0, normalizedVx, normalizedVy, z) = (px, py, dPx, dPy) where
+    sqrTerm = OP "/" (OP "+" (SQR (VAR t)) (SQR (VAR z))) $ OP "*" (CONST 2) (VAR z)
+    px = OP "+" x0
+               $ OP "-" (OP "*" normalizedVx (VAR t))
+                       $ OP "*" normalizedVy sqrTerm
+    py = OP "+" y0
+               $ OP "+" (OP "*" normalizedVy (VAR t))
+                       $ OP "*" normalizedVx sqrTerm
+
+    dPx = OP "-" normalizedVx $ OP "*" normalizedVy $ OP "/" (VAR t) (VAR z)
+    dPy = OP "+" normalizedVy $ OP "*" normalizedVx $ OP "/" (VAR t) (VAR z)
+
+requireMatchup :: (Expr, Expr, Expr, Expr) -> (Expr, Expr, Expr, Expr) -> TransformState ()
+requireMatchup (p1x, p1y, dP1x, dP1y) (p2x, p2y, dP2x, dP2y) = do
+    addExpr $ OP "=" (OP "*" dP1x dP2y) (OP "*" dP1y dP2x)
+    addExpr $ OP "=" (OP "*" (OP "-" p1y p2y) dP1x) (OP "*" (OP "-" p1x p2x) dP1y)
+
+getA :: (Expr, Expr) -> State.Variable -> (Expr, Expr)
+getA (vx, vy) norm = (OP "/" vx (VAR norm), OP "/" vy (VAR norm))
+
+getB :: (Expr, Expr) -> State.Variable -> (Expr, Expr)
+getB (vx, vy) norm = (OP "/" (OP "*" (CONST (-1)) vy) (VAR norm), OP "/" vx (VAR norm))
+
 
 
 addFold7Decl :: Parser.Identifier

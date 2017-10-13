@@ -32,8 +32,9 @@ unifyClauses :: [String] -> String
 unifyClauses = List.foldr foldClauses ""
 
 makeClause :: Bool -> String -> String
+makeClause _ "" = ""
 makeClause False clause = "(assert " ++ clause ++ ")\n"
 makeClause True clause = "(assert (not " ++ clause ++ "))\n"
 
 endStr :: String
-endStr = "(check-sat)\n(get-model)\n(exit)\n"
+endStr = "(get-info :all-statistics)\n(check-sat)\n(get-model)\n(exit)\n"

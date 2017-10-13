@@ -98,10 +98,12 @@ addLine iden = do
             return (x1, y1, x2, y2)
 
 addClause :: Clause -> TransformState ()
-addClause c = state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) })
+addClause c = if c == "" then error "clause cannot be empty"
+                         else state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) })
 
 addConstraintClause :: Clause -> TransformState ()
-addConstraintClause c = state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) })
+addConstraintClause c = if c == "" then error "constraint clause cannot be empty" 
+                                   else state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) })
 
 doNothing :: TransformState ()
 doNothing = state $ \s -> ((), s)
