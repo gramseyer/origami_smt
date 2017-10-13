@@ -78,9 +78,14 @@ freshVarPair :: TransformState (Variable, Variable)
 freshVarPair = freshNamedVarPair ""
 
 freshNamedVarPair :: String -> TransformState (Variable, Variable)
-freshNamedVarPair str = state $ \t
+freshNamedVarPair s = state $ \t
     -> ((str ++ "_x" ++ show (freshVarCnt t), str ++ "_y" ++ show (freshVarCnt t)),
-        t { varNameMap = Map.insert (freshVarCnt t) str (varNameMap t), freshVarCnt = (freshVarCnt t) + 1}) 
+        t { varNameMap = Map.insert (freshVarCnt t) str (varNameMap t), freshVarCnt = (freshVarCnt t) + 1}) where
+    str = disableNaming s
+
+--disable variable naming
+disableNaming :: String -> String
+disableNaming str = str
 
 addPoint :: Parser.Identifier -> TransformState (Variable, Variable)
 addPoint iden = do

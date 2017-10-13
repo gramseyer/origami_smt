@@ -44,7 +44,7 @@ data Declaration = DEC_FOLD1 Identifier Identifier Identifier
                  | DEC_FOLD5_SOL1 Identifier Identifier Identifier Identifier
                  | DEC_FOLD5_SOL2 Identifier Identifier Identifier Identifier
                  | DEC_NFOLD5 Identifier Identifier Identifier Identifier
-                 | DEC_FOLD6 Int Int Identifier Identifier Identifier Identifier Identifier
+                 | DEC_FOLD6 Int Identifier Identifier Identifier Identifier Identifier
                  | DEC_FOLD7 Identifier Identifier Identifier Identifier
                  | DEC_INTERSECT Identifier Identifier Identifier
     deriving Show
@@ -129,31 +129,18 @@ nfold5dec :: Parser Declaration
 nfold5dec = ternarydecmaker "nfold5" DEC_NFOLD5
 
 fold6dec :: Parser Declaration
-fold6dec = try fold6dec3sol1
-       <|> try fold6dec3sol2
-       <|> try fold6dec3sol3
-       <|> try fold6dec2sol1
-       <|> try fold6dec2sol2
-       <|> try fold6dec1sol1
+fold6dec = try fold6decsol1
+       <|> try fold6decsol2
+       <|> try fold6decsol3
 
-fold6dec3sol1 :: Parser Declaration
-fold6dec3sol1 = quaternarydecmaker "fold6_1/3" $ DEC_FOLD6 3 1
+fold6decsol1 :: Parser Declaration
+fold6decsol1 = quaternarydecmaker "fold6_1" $ DEC_FOLD6 1
 
-fold6dec3sol2 :: Parser Declaration
-fold6dec3sol2 = quaternarydecmaker "fold6_2/3" $ DEC_FOLD6 3 2
+fold6decsol2 :: Parser Declaration
+fold6decsol2 = quaternarydecmaker "fold6_2" $ DEC_FOLD6 2
 
-fold6dec3sol3 :: Parser Declaration
-fold6dec3sol3 = quaternarydecmaker "fold6_3/3" $ DEC_FOLD6 3 3
-
-fold6dec2sol1 :: Parser Declaration
-fold6dec2sol1 = quaternarydecmaker "fold6_1/2" $ DEC_FOLD6 2 1
-
-fold6dec2sol2 :: Parser Declaration
-fold6dec2sol2 = quaternarydecmaker "fold6_2/2" $ DEC_FOLD6 2 2
-
-fold6dec1sol1 :: Parser Declaration
-fold6dec1sol1 = quaternarydecmaker "fold6_1/1" $ DEC_FOLD6 1 1
-
+fold6decsol3 :: Parser Declaration
+fold6decsol3 = quaternarydecmaker "fold6_3" $ DEC_FOLD6 3
 
 fold7dec :: Parser Declaration
 fold7dec = ternarydecmaker "fold7" DEC_FOLD7
