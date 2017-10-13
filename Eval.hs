@@ -398,10 +398,10 @@ fold6Decl_get1sol :: Parser.Identifier
 fold6Decl_get1sol var p1 l1 p2 l2 = do
     p1exprs <- getParametrizationsForParabola p1 l1
     p2exprs <- getParametrizationsForParabola p2 l2
-    (t1, t1') <- State.freshVarPair
+    (t1, t1') <- State.freshNamedVarPair "t1"
     let t1exprs = constructParametrizationFunction t1 p1exprs
     let t1'exprs = constructParametrizationFunction t1' p2exprs
-    --requireMatchup t1exprs t1'exprs
+    requireMatchup t1exprs t1'exprs
     return (getSoln t1exprs t1'exprs)
 
 getSoln :: (a, a, a, a) -> (a, a, a, a) -> (a, a, a, a)
@@ -421,15 +421,7 @@ getParametrizationsForParabola p l = do
                                                   OP "+" (VAR yc) (OP "-" (VAR a2) (VAR a1)))
     addExpr xConstr
     addExpr yConstr
-   {- addExpr $ OP "=" (OP "*" (VAR y0) (OP "-" (VAR b2) (VAR b1)))
-                     (OP "+" (OP "*" (VAR yc) (OP "-" (VAR b2) (VAR b1)))
-                             (OP "*" (OP "-" (VAR a2) (VAR a1))
-                                     (OP "-" (VAR a1) (VAR x0))))
-    addExpr $ OP "=" (OP "*" (VAR x0) (OP "-" (VAR b2) (VAR b1)))
-                     (OP "+" (OP "*" (VAR xc) (OP "-" (VAR b2) (VAR b1)))
-                             (OP "*" (OP "-" (VAR y0) (VAR b1))
-                                     (OP "-" (VAR a2) (VAR a1))))
-    -}
+
     let crossProd = crossProdExpr (OP "-" (VAR a2) (VAR a1), OP "-" (VAR b2) (VAR b1)) (OP "-" (VAR xc) (VAR x0), OP "-" (VAR yc) (VAR y0))
     (vx, vy) <- State.freshVarPair
     addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (OP "=" (VAR vx) (OP "-" (VAR a2) (VAR a1))))
@@ -438,16 +430,13 @@ getParametrizationsForParabola p l = do
     addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (OP "=" (VAR vy) (OP "-" (VAR b2) (VAR b1))))
                       (OP "and" (OP "<" crossProd (CONST 0)) (OP "=" (VAR vy) (OP "-" (VAR b1) (VAR b2))))
  
-
-    (norm, z) <- State.freshVarPair
+    (norm, z) <- State.freshNamedVarPair "normz"
     addExpr $ OP "=" (SQR (VAR norm)) (OP "+" (SQR (VAR vx)) (SQR (VAR vy)))
     addExpr $ OP "=" (SQR (VAR z)) (OP "+" (SQR (OP "-" (VAR yc) (VAR y0))) (SQR (OP "-" (VAR xc) (VAR x0))))
-    
+    addExpr $ OP ">=" (VAR norm) (CONST 0)
+    addExpr $ OP ">=" (VAR z) (CONST 0)
     let normalizedVx = OP "/" (VAR vx) (VAR norm)
     let normalizedVy = OP "/" (VAR vy) (VAR norm)
-
-    let xp = midPoint (VAR x0) (VAR xc)
-    let yp = midPoint (VAR y0) (VAR yc)
 
     return $ (VAR x0, VAR y0, normalizedVx, normalizedVy, z)
 
@@ -470,14 +459,6 @@ requireMatchup :: (Expr, Expr, Expr, Expr) -> (Expr, Expr, Expr, Expr) -> Transf
 requireMatchup (p1x, p1y, dP1x, dP1y) (p2x, p2y, dP2x, dP2y) = do
     addExpr $ OP "=" (OP "*" dP1x dP2y) (OP "*" dP1y dP2x)
     addExpr $ OP "=" (OP "*" (OP "-" p1y p2y) dP1x) (OP "*" (OP "-" p1x p2x) dP1y)
-
-getA :: (Expr, Expr) -> State.Variable -> (Expr, Expr)
-getA (vx, vy) norm = (OP "/" vx (VAR norm), OP "/" vy (VAR norm))
-
-getB :: (Expr, Expr) -> State.Variable -> (Expr, Expr)
-getB (vx, vy) norm = (OP "/" (OP "*" (CONST (-1)) vy) (VAR norm), OP "/" vx (VAR norm))
-
-
 
 addFold7Decl :: Parser.Identifier
              -> Parser.Identifier
