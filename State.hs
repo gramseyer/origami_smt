@@ -1,6 +1,6 @@
 module State (
     TransformState,
-    Transform (constructionClauses, assertionClauses, freshVarCnt),
+    Transform (constructionClauses, assertionClauses, freshVarCnt, varNameMap),
     Variable,
     Clause,
     execTransform,
@@ -13,7 +13,6 @@ module State (
     addConstraintClause,
     doNothing) where
 
-
 import Parser
 import qualified Data.Map as Map
 import Control.Monad.State
@@ -25,7 +24,8 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
                      lineMap :: Map.Map Parser.Identifier (Variable, Variable, Variable, Variable), --(x1, y1, x2, y2)
                      constructionClauses :: [Clause],
                      assertionClauses :: [Clause],
-                     freshVarCnt :: Int }
+                     freshVarCnt :: Int,
+                     varNameMap :: Map.Map Int String}
 
 type Clause = String
 type Variable = String
@@ -41,7 +41,8 @@ initialState = T { pointMap = Map.fromList cornerVars,
                    lineMap = Map.empty, 
                    constructionClauses = ["(= _right 1)", "(= _left 0)", "(= _top 1)", "(= _bottom 0)" ],
                    assertionClauses = [],
-                   freshVarCnt =  0 }
+                   freshVarCnt =  0,
+                   varNameMap = Map.empty }
 
 execTransform :: TransformState a -> Transform
 execTransform st = execState st initialState 
@@ -70,11 +71,15 @@ getLineVars iden = do
     lineMap <- getLineMap
     case Map.lookup iden lineMap of
         Just v -> return v
-        Nothing -> error $"undefined line " ++ iden
+        Nothing -> error $ "undefined line " ++ iden
 
 freshVarPair :: TransformState (Variable, Variable)
-freshVarPair = state $ \t 
-    -> (("x" ++ show (freshVarCnt t), "y" ++ show (freshVarCnt t)), t { freshVarCnt = (freshVarCnt t) + 1 })
+freshVarPair = freshNamedVarPair ""
+
+freshNamedVarPair :: String -> TransformState (Variable, Variable)
+freshNamedVarPair str = state $ \t
+    -> ((str ++ "_x" ++ show (freshVarCnt t), str ++ "_y" ++ show (freshVarCnt t)),
+        t { varNameMap = Map.insert (freshVarCnt t) str (varNameMap t), freshVarCnt = (freshVarCnt t) + 1}) 
 
 addPoint :: Parser.Identifier -> TransformState (Variable, Variable)
 addPoint iden = do
@@ -82,7 +87,7 @@ addPoint iden = do
     case Map.lookup iden ptMap of
         Just v -> error ("Redefining point " ++ iden)
         Nothing -> do 
-            newVars <- freshVarPair
+            newVars <- freshNamedVarPair $ iden ++ "_point"
             putPointMap (Map.insert iden newVars ptMap)
             return newVars
 
@@ -92,8 +97,8 @@ addLine iden = do
     case Map.lookup iden lineMap of
         Just v -> error $ "Redefining line " ++ iden
         Nothing -> do
-            (x1, y1) <- freshVarPair
-            (x2, y2) <- freshVarPair
+            (x1, y1) <- freshNamedVarPair $ iden ++ "_line_1"
+            (x2, y2) <- freshNamedVarPair $ iden ++ "_line_2"
             putLineMap (Map.insert iden (x1, y1, x2, y2) lineMap)
             return (x1, y1, x2, y2)
 
