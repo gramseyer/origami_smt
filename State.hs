@@ -9,6 +9,7 @@ module State (
     addPoint,
     addLine,
     freshVarPair,
+    freshNamedVarPair,
     addClause,
     addConstraintClause,
     doNothing) where

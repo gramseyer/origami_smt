@@ -117,8 +117,8 @@ addFold3Decl var arg1 arg2 = do
 
     let parX1 = midPoint (VAR a1) (VAR c1)
     let parY1 = midPoint (VAR b1) (VAR d1)
-    let parX2 = midPoint (VAR a2) (VAR c2)
-    let parY2 = midPoint (VAR b2) (VAR d2)
+    let parX2 = midPoint (VAR a1) (VAR c2)
+    let parY2 = midPoint (VAR b1) (VAR d2)
     let parCond = OP "and" parallelConstr
                            (OP "and" (OP "and" (OP "=" (VAR x1) parX1)
                                                (OP "=" (VAR y1) parY1))
@@ -165,8 +165,8 @@ addNFold3Decl var arg1 arg2 = do
 
     let parX1 = midPoint (VAR a1) (VAR c1)
     let parY1 = midPoint (VAR b1) (VAR d1)
-    let parX2 = midPoint (VAR a2) (VAR c2)
-    let parY2 = midPoint (VAR b2) (VAR d2)
+    let parX2 = midPoint (VAR a1) (VAR c2)
+    let parY2 = midPoint (VAR b1) (VAR d2)
 
     let parCond = OP "and" parallelConstr
                            (OP "and" (OP "and" (OP "=" (VAR x1) parX1)
@@ -401,11 +401,12 @@ fold6Decl_get1sol var p1 l1 p2 l2 = do
     (t1, t1') <- State.freshVarPair
     let t1exprs = constructParametrizationFunction t1 p1exprs
     let t1'exprs = constructParametrizationFunction t1' p2exprs
-    requireMatchup t1exprs t1'exprs
+    --requireMatchup t1exprs t1'exprs
     return (getSoln t1exprs t1'exprs)
 
 getSoln :: (a, a, a, a) -> (a, a, a, a) -> (a, a, a, a)
 getSoln (x1, y1, _, _) (x2, y2, _, _) = (x1, y1, x2, y2)
+    
 
 getParametrizationsForParabola :: Parser.Identifier
                                -> Parser.Identifier
@@ -413,16 +414,22 @@ getParametrizationsForParabola :: Parser.Identifier
 getParametrizationsForParabola p l = do
     (xc, yc) <- State.getPointVars p
     (a1, b1, a2, b2) <- State.getLineVars l
-    (x0, y0) <- State.freshVarPair
-    addExpr $ OP "=" (OP "*" (VAR y0) (OP "-" (VAR b2) (VAR b1)))
+    (x0, y0) <- State.freshNamedVarPair "basept_parabola"
+    let (xConstr, yConstr) = getIntersectPtExprs (x0, y0)
+                                 (VAR a1, VAR b1, VAR a2, VAR b2)
+                                 (VAR xc, VAR yc, OP "+" (VAR xc) (OP "-" (VAR b1) (VAR b2)),
+                                                  OP "+" (VAR yc) (OP "-" (VAR a2) (VAR a1)))
+    addExpr xConstr
+    addExpr yConstr
+   {- addExpr $ OP "=" (OP "*" (VAR y0) (OP "-" (VAR b2) (VAR b1)))
                      (OP "+" (OP "*" (VAR yc) (OP "-" (VAR b2) (VAR b1)))
                              (OP "*" (OP "-" (VAR a2) (VAR a1))
                                      (OP "-" (VAR a1) (VAR x0))))
     addExpr $ OP "=" (OP "*" (VAR x0) (OP "-" (VAR b2) (VAR b1)))
-                     (OP "+" (OP "*" (VAR a1) (OP "-" (VAR b2) (VAR b1)))
+                     (OP "+" (OP "*" (VAR xc) (OP "-" (VAR b2) (VAR b1)))
                              (OP "*" (OP "-" (VAR y0) (VAR b1))
                                      (OP "-" (VAR a2) (VAR a1))))
-    
+    -}
     let crossProd = crossProdExpr (OP "-" (VAR a2) (VAR a1), OP "-" (VAR b2) (VAR b1)) (OP "-" (VAR xc) (VAR x0), OP "-" (VAR yc) (VAR y0))
     (vx, vy) <- State.freshVarPair
     addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (OP "=" (VAR vx) (OP "-" (VAR a2) (VAR a1))))
