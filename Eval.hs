@@ -449,11 +449,11 @@ fold6GetCompareVector p1 l1 = do
     let crossProd = crossProdExpr (OP "-" (VAR a2) (VAR a1), OP "-" (VAR b2) (VAR b1))
                                   (OP "-" (VAR xc) (VAR x0), OP "-" (VAR yc) (VAR y0))
     (vx, vy) <- State.freshVarPair
-    addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (OP "=" (VAR vx) (OP "-" (VAR a2) (VAR a1))))
-                      (OP "and" (OP "<" crossProd (CONST 0)) (OP "=" (VAR vx) (OP "-" (VAR a1) (VAR a2))))
+    addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (ASSIGN vx (OP "-" (VAR a2) (VAR a1))))
+                      (OP "and" (OP "<" crossProd (CONST 0)) (ASSIGN vx (OP "-" (VAR a1) (VAR a2))))
 
-    addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (OP "=" (VAR vy) (OP "-" (VAR b2) (VAR b1))))
-                      (OP "and" (OP "<" crossProd (CONST 0)) (OP "=" (VAR vy) (OP "-" (VAR b1) (VAR b2))))
+    addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (ASSIGN vy (OP "-" (VAR b2) (VAR b1))))
+                      (OP "and" (OP "<" crossProd (CONST 0)) (ASSIGN vy (OP "-" (VAR b1) (VAR b2))))
     return (VAR vx, VAR vy)
 
 
@@ -527,21 +527,21 @@ getDistinctRootCount (a,b,c,d) = do
                         (LIST "-" [CONST 27, a, a, d, d])
     let t2desc = OP "-" (SQR c) (LIST "*" [CONST 4, b, d])
     
-    (t3descV, t2descV) <- State.freshVarPair
-    addExpr $ OP "=" t3desc (VAR t3descV)
-    addExpr $ OP "=" t2desc (VAR t2descV)
+    (t3descV, t2descV) <- State.freshNamedVarPair "discriminants"
+    addExpr $ ASSIGN t3descV t3desc
+    addExpr $ ASSIGN t2descV t2desc
 
-    let t3cond' = LIST "and" [OP ">" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), OP "=" (VAR roots) (CONST 3)]
-    let t3cond'' = LIST "and" [OP "=" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), OP "=" (VAR roots) (CONST 2)]
-    let t3cond''' = LIST "and" [OP "<" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), OP "=" (VAR roots) (CONST 1)] 
+    let t3cond' = LIST "and" [OP ">" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), ASSIGN roots (CONST 3)]
+    let t3cond'' = LIST "and" [OP "=" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), ASSIGN roots (CONST 2)]
+    let t3cond''' = LIST "and" [OP "<" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), ASSIGN roots (CONST 1)] 
     let t3cond = LIST "or" [t3cond', t3cond'', t3cond''']
 
-    let t2cond' = LIST "and" [OP ">" (VAR t2descV) (CONST 0), NEG (OP "=" (CONST 0) b), OP "=" (VAR roots) (CONST 2)]
-    let t2cond'' = LIST "and" [OP "=" (VAR t2descV) (CONST 0), NEG (OP "=" (CONST 0) b), OP "=" (VAR roots) (CONST 1)]
-    let t2cond''' = LIST "and" [OP "<" (VAR t2descV) (CONST 0), NEG (OP "=" (CONST 0) b), OP "=" (VAR roots) (CONST 0)]
+    let t2cond' = LIST "and" [OP ">" (VAR t2descV) (CONST 0), NEG (OP "=" (CONST 0) b), ASSIGN roots (CONST 2)]
+    let t2cond'' = LIST "and" [OP "=" (VAR t2descV) (CONST 0), NEG (OP "=" (CONST 0) b), ASSIGN roots (CONST 1)]
+    let t2cond''' = LIST "and" [OP "<" (VAR t2descV) (CONST 0), NEG (OP "=" (CONST 0) b), ASSIGN roots (CONST 0)]
     let t2cond = LIST "or" [t2cond', t2cond'', t2cond''']
 
-    let t1cond = LIST "and" [NEG (OP "=" (CONST 0) c), OP "=" (VAR roots) (CONST 1)]
+    let t1cond = LIST "and" [NEG (OP "=" (CONST 0) c), ASSIGN roots (CONST 1)]
  
     let rootsCond = LIST "or" [t3cond, OP "and" (OP "=" (CONST 0) a) t2cond, LIST "and" [OP "=" (CONST 0) a, OP "=" (CONST 0) b, t1cond]]
 
