@@ -263,38 +263,51 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     (a, b) <- State.getPointVars pointMove
     (c1, d1, c2, d2) <- State.getLineVars line
     let r2 = distance (xc, yc) (a, b)
+    --let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
+   -- let quadB = OP "+" (OP "*" (CONST 2) (OP "*" (OP "-" (VAR c2) (VAR c1))
+   --                                              (OP "-" (VAR c1) (VAR c2))))
+   --                    (OP "*" (CONST 2) (OP "*" (OP "-" (VAR d2) (VAR d1))
+   --                                              (OP "-" (VAR d1) (VAR d2))))
+   -- let quadC = OP "-" (OP "-" (OP "+" (OP "+" (OP "+" (SQR (VAR d1)) (SQR (VAR c1)))
+   --                                            (SQR (VAR xc)))
+    --                                   (SQR (VAR yc)))
+     --                          (OP "*" (CONST 2) (OP "+" (OP "*" (VAR xc) (VAR c1))
+       --                                                  (OP "*" (VAR yc) (VAR d1)))))
+         --              r2
     let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
-    let quadB = OP "+" (OP "*" (CONST 2) (OP "*" (OP "-" (VAR c2) (VAR c1))
-                                                 (OP "-" (VAR c1) (VAR c2))))
-                       (OP "*" (CONST 2) (OP "*" (OP "-" (VAR d2) (VAR d1))
-                                                 (OP "-" (VAR d1) (VAR d2))))
-    let quadC = OP "-" (OP "-" (OP "+" (OP "+" (OP "+" (SQR (VAR d1)) (SQR (VAR c1)))
-                                               (SQR (VAR xc)))
-                                       (SQR (VAR yc)))
-                               (OP "*" (CONST 2) (OP "+" (OP "*" (VAR xc) (VAR c1))
-                                                         (OP "*" (VAR yc) (VAR d1)))))
-                       r2
-    (desc, f2) <- State.freshVarPair
+    let quadB = OP "*" (CONST 2) (OP "+" (OP "*" (OP "-" (VAR c2) (VAR c1)) (OP "-" (VAR c1) (VAR a)))
+                                         (OP "*" (OP "-" (VAR d2) (VAR d1)) (OP "-" (VAR d1) (VAR b))))
+    let quadC = OP "-" (OP "+" (SQR (OP "-" (VAR c1) (VAR a))) (SQR (OP "-" (VAR d1) (VAR b)))) r2
+    (desc, _) <- State.freshNamedVarPair "fold5Diagnostics"
     let descExpr = OP "-" (SQR quadB) (OP "*" (OP "*" (CONST 2) quadA) quadC)
     addExpr $ OP "=" (SQR (VAR desc)) descExpr
+    addExpr $ OP ">" (VAR desc) (CONST 0)
     let sol1 = OP "/" (OP "+" (OP "-" (CONST 0) quadB) (VAR desc))
                       (OP "*" (CONST 2) quadA)
     let sol2 = OP "/" (OP "-" (OP "-" (CONST 0) quadB) (VAR desc))
                       (OP "*" (CONST 2) quadA)
-    sol1x <- midPoint (VAR a) (OP "+" (VAR c1) (OP "*" sol1 (OP "-" (VAR c2) (VAR c1))))
-    sol1y <- midPoint (VAR b) (OP "+" (VAR d1) (OP "*" sol1 (OP "-" (VAR d2) (VAR d1))))
-    sol2x <- midPoint (VAR a) (OP "+" (VAR c1) (OP "*" sol2 (OP "-" (VAR c2) (VAR c1))))
-    sol2y <- midPoint (VAR b) (OP "+" (VAR d1) (OP "*" sol2 (OP "-" (VAR d2) (VAR d1))))
+    (s1, s2) <- State.freshNamedVarPair "fold5Sols"
+    addExpr $ ASSIGN s1 sol1
+    addExpr $ ASSIGN s2 sol2
+    let sol1x = (OP "+" (VAR c1) (OP "*" sol1 (OP "-" (VAR c2) (VAR c1))))
+    let sol1y = (OP "+" (VAR d1) (OP "*" sol1 (OP "-" (VAR d2) (VAR d1))))
+    let sol2x = (OP "+" (VAR c1) (OP "*" sol2 (OP "-" (VAR c2) (VAR c1))))
+    let sol2y = (OP "+" (VAR d1) (OP "*" sol2 (OP "-" (VAR d2) (VAR d1))))
 
     let wx = OP "-" sol1x (VAR a)
     let wy = OP "-" sol1y (VAR b)
     let vx = OP "-" sol2x (VAR a)
     let vy = OP "-" sol2y (VAR b)
 
+    let sol1x' = OP "+" sol1x (OP "*" (CONST (-1)) wy)
+    let sol1y' = OP "+" sol1y (wx)
+    let sol2x' = OP "+" sol2x (OP "*" (CONST (-1)) vy)
+    let sol2y' = OP "+" sol2y (vx)
+
     let crossProd = crossProdExpr (vx, vy) (wx, wy)
     
-    let sol1Expr = OP "and" (OP "=" (VAR x2) sol1x) (OP "=" (VAR y2) sol1y)
-    let sol2Expr = OP "and" (OP "=" (VAR x2) sol2x) (OP "=" (VAR y2) sol2y)
+    let sol1Expr = ASSIGNS [(x2, sol1x'), (y2, sol1y')]
+    let sol2Expr = ASSIGNS [(x2, sol2x'), (y2, sol2y')]
 
     let firstStr = if flag then ">=" else "<="
     let secondStr = if flag then "<=" else ">="
@@ -302,7 +315,9 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     let sol1Constrained = OP "and" (OP firstStr crossProd (CONST 0)) sol1Expr
     let sol2Constrained = OP "and" (OP secondStr crossProd (CONST 0)) sol2Expr
 
-    let centerExpr = OP "and" (OP "=" (VAR x1) (VAR xc)) (OP "=" (VAR y1) (VAR yc))
+
+
+    let centerExpr = ASSIGNS  [(x1, (VAR xc)), (y1, (VAR yc))]
     let totalExpr = OP "and" centerExpr (OP "or" sol1Constrained sol2Constrained)
     addExpr totalExpr
 
