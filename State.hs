@@ -137,16 +137,20 @@ negateExpr (BOOL b) = BOOL (not b)
 negateExpr x = NEG x
 
 plus :: Constant -> Constant -> Constant
-plus (x1, y1) (x2, y2) = (x1*y2 + x2*y1, y1*y2)
+plus (x1, y1) (x2, y2) = removeGCD (x1*y2 + x2*y1, y1*y2)
 
 minus :: Constant -> Constant -> Constant
-minus (x1, y1) (x2, y2) = (x1*y2 - x2 * y1, y1*y2)
+minus (x1, y1) (x2, y2) = removeGCD (x1*y2 - x2 * y1, y1*y2)
 
 times :: Constant -> Constant -> Constant
-times (x1, y1) (x2, y2) = (x1*x2, y1*y2)
+times (x1, y1) (x2, y2) = removeGCD (x1*x2, y1*y2)
 
 divide :: Constant -> Constant -> Constant
-divide (x1, y1) (x2, y2) = (x1*y2, y1*x2)
+divide (x1, y1) (x2, y2) = removeGCD (x1*y2, y1*x2)
+
+removeGCD :: Constant -> Constant
+removeGCD (a, b) = (a `div` c, b `div` c) where
+    c = gcd a b
 
 comparison :: (Int -> Int -> Bool) -> Constant -> Constant -> Bool
 comparison f (x1, y1) (x2, y2) = ((x1*y2) `f` (x2*y1))
