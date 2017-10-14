@@ -226,12 +226,16 @@ addFold4Decl var arg1 arg2 = do
     let preRotateY = OP "-" (VAR d2) (VAR d1)
     let postRotateX = preRotateY
     let postRotateY = OP "-" (CONST 0) preRotateX
-    let eqAssert = OP "and" (OP "=" (VAR x2) (OP "+" postRotateX (VAR a)))
-                            (OP "=" (VAR y2) (OP "+" postRotateY (VAR b)))
-    let eqAssert' = OP "and" (OP "=" (VAR x1) (VAR a))
-                             (OP "=" (VAR y1) (VAR b))
-    addExpr eqAssert
-    addExpr eqAssert'    
+ --   let eqAssert = OP "and" (OP "=" (VAR x2) (OP "+" postRotateX (VAR a)))
+ --                           (OP "=" (VAR y2) (OP "+" postRotateY (VAR b)))
+  --  let eqAssert' = OP "and" (OP "=" (VAR x1) (VAR a))
+ --                            (OP "=" (VAR y1) (VAR b))
+   -- addExpr eqAssert
+    --addExpr eqAssert'
+    addExpr $ ASSIGN x1 (VAR a)
+    addExpr $ ASSIGN y1 (VAR b)
+    addExpr $ ASSIGN x2 (OP "+" postRotateX (VAR a))
+    addExpr $ ASSIGN y2 (OP "+" postRotateY (VAR b))    
 
 addFold5DeclSol1 :: Parser.Identifier
                  -> Parser.Identifier
