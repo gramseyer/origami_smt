@@ -149,8 +149,11 @@ divide :: Constant -> Constant -> Constant
 divide (x1, y1) (x2, y2) = removeGCD (x1*y2, y1*x2)
 
 removeGCD :: Constant -> Constant
-removeGCD (a, b) = (a `div` c, b `div` c) where
+removeGCD (a, b) = normalizeNegatives (a `div` c, b `div` c) where
     c = gcd a b
+
+normalizeNegatives :: Constant -> Constant
+normalizeNegatives (a, b) = if (b < 0) then ((-a), (-b)) else (a, b)
 
 comparison :: (Int -> Int -> Bool) -> Constant -> Constant -> Bool
 comparison f (x1, y1) (x2, y2) = ((x1*y2) `f` (x2*y1))

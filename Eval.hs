@@ -379,10 +379,10 @@ addFold6Decl solNum var p1 l1 p2 l2 = do
 assignSolution :: (Expr, Expr, Expr, Expr) -> Parser.Identifier -> TransformState ()
 assignSolution (a1, b1, a2, b2) var = do
     (x1, y1, x2, y2) <- State.addLine var
-    addExpr $ OP "=" (VAR x1) a1
-    addExpr $ OP "=" (VAR y1) b1
-    addExpr $ OP "=" (VAR x2) a2
-    addExpr $ OP "=" (VAR y2) b2
+    addExpr $ ASSIGN x1 a1
+    addExpr $ ASSIGN y1 b1
+    addExpr $ ASSIGN x2 a2
+    addExpr $ ASSIGN y2 b2
 
 conditionalAddExpr :: Bool -> State.Variable -> State.Variable  -> TransformState ()
 conditionalAddExpr True v1 v2 = addExpr $ OP "<" (VAR v2) (VAR v1)
@@ -622,13 +622,13 @@ fold6DeclGetCoeffs p1 l1 p2 l2 = do
     (c3V, c4V) <- State.freshNamedVarPair "ci_34"
     (c5V, c6V) <- State.freshNamedVarPair "ci_56"
     (c7V, _) <- State.freshNamedVarPair "ci_7"
-    addExpr $ OP "=" (VAR c1V) c1
-    addExpr $ OP "=" (VAR c2V) c2
-    addExpr $ OP "=" (VAR c3V) c3
-    addExpr $ OP "=" (VAR c4V) c4
-    addExpr $ OP "=" (VAR c5V) c5
-    addExpr $ OP "=" (VAR c6V) c6
-    addExpr $ OP "=" (VAR c7V) c7
+    addExpr $ ASSIGN c1V c1
+    addExpr $ ASSIGN c2V c2
+    addExpr $ ASSIGN c3V c3
+    addExpr $ ASSIGN c4V c4
+    addExpr $ ASSIGN c5V c5
+    addExpr $ ASSIGN c6V c6
+    addExpr $ ASSIGN c7V c7
     
     let a = (VAR c6V)
     let b = OP "+" (VAR c1V) $ OP "+" (OP "*" (VAR c4V) (VAR c6V)) (VAR c7V)
@@ -636,10 +636,10 @@ fold6DeclGetCoeffs p1 l1 p2 l2 = do
     let d = OP "+" (OP "*" (VAR c1V) (VAR c3V)) (OP "*" (VAR c5V) (VAR c7V))
     (aV, bV) <- State.freshNamedVarPair "coeff_ab"
     (cV, dV) <- State.freshNamedVarPair "coeff_cd"
-    addExpr $ OP "=" a (VAR aV)
-    addExpr $ OP "=" b (VAR bV)
-    addExpr $ OP "=" c (VAR cV)
-    addExpr $ OP "=" d (VAR dV)
+    addExpr $ ASSIGN aV a
+    addExpr $ ASSIGN bV b
+    addExpr $ ASSIGN cV c
+    addExpr $ ASSIGN dV d
     return (VAR aV, VAR bV, VAR cV, VAR dV)
 
 dot :: (Expr, Expr) -> (Expr, Expr) -> Expr
@@ -802,9 +802,9 @@ addIntersectDecl var arg1 arg2 = do
     (newx, newy) <- State.addPoint var
     (x1, y1, x2, y2) <- State.getLineVars arg1
     (x3, y3, x4, y4) <- State.getLineVars arg2
-    let (xconstr, yconstr) = getIntersectPt (newx, newy) (x1, y1, x2, y2) (x3, y3, x4, y4)
-    addExpr xconstr
-    addExpr yconstr
+    let (xNum, yNum, denom) = assignIntersectPtData (VAR x1, VAR y1, VAR x2, VAR y2) (VAR x3, VAR y3, VAR x4, VAR y4)
+    addExpr $ ASSIGN newx (OP "/" xNum denom)
+    addExpr $ ASSIGN newy (OP "/" yNum denom)
     addExpr $ pointInBox (newx, newy)
     
 --taken from wikipedia line-line intersection page
