@@ -24,7 +24,7 @@ executeConstructions = List.foldr ((>>) . (addConstraint addExpr)) State.doNothi
 executeConstraints :: [Parser.Constraint] -> TransformState ()
 executeConstraints = List.foldr ((>>) . (addConstraint addConstraintExpr)) State.doNothing
 
-data Expr = OP String Expr Expr
+{-data Expr = OP String Expr Expr
           | VAR String
           | SQR Expr
           | CONST Int
@@ -38,12 +38,18 @@ translateExpr (SQR expr)     = "(* " ++ translateExpr expr ++ " " ++  translateE
 translateExpr (CONST x)      = if x >= 0 then show x else "(- " ++ show (abs x) ++ ")"
 translateExpr (NEG expr)     = "(not " ++ translateExpr expr ++ ")"
 translateExpr (LIST str e)   = "(" ++ str ++ " " ++ (List.concat (List.map ((++) " ") (List.map translateExpr e))) ++ ")"
+-}
+
+--type Expr = S.Expr
+
+
 
 
 distance :: (State.Variable, State.Variable)
          -> (State.Variable, State.Variable)
          -> Expr
-distance (x1, y1) (x2, y2) = OP "+" (SQR (OP "-" (VAR x1) (VAR x2))) (SQR (OP "-" (VAR y1) (VAR y2)))
+distance (x1, y1) (x2, y2) = OP "+" (SQR (OP "-" (VAR x1) (VAR x2)))
+                                    (SQR (OP "-" (VAR y1) (VAR y2)))
 
         -- v1x, v1y, v2x, v2y
 dotprod :: Expr -> Expr -> Expr -> Expr -> Expr
@@ -79,10 +85,10 @@ addFold1Decl var arg1 arg2 = do
     (x1, y1, x2, y2) <- State.addLine var
     (a1, b1) <- State.getPointVars arg1
     (a2, b2) <- State.getPointVars arg2
-    addExpr $ OP "=" (VAR a1) (VAR x1)
-    addExpr $ OP "=" (VAR b1) (VAR y1)
-    addExpr $ OP "=" (VAR a2) (VAR x2)
-    addExpr $ OP "=" (VAR b2) (VAR y2)
+    addExpr $ ASSIGN x1 (VAR a1)
+    addExpr $ ASSIGN y1 (VAR b1)
+    addExpr $ ASSIGN x2 (VAR a2)
+    addExpr $ ASSIGN y2 (VAR b2)
     --sanity check
     addExpr $ NEG (OP "and" (OP "=" (VAR x1) (VAR x2))
                             (OP "=" (VAR y1) (VAR y2)))
@@ -834,9 +840,12 @@ getColinearExpr (a, b) (x1, y1, x2, y2) =
 crossProdExpr :: (Expr, Expr) -> (Expr, Expr) -> Expr
 crossProdExpr (vx, vy) (wx, wy) = OP "-" (OP "*" vx wy) (OP "*" vy wx)
 
-
 addExpr :: Expr -> TransformState ()
-addExpr = State.addClause.translateExpr
+addExpr e = do
+    str <- State.resolveExpr e
+    State.addClause str
 
 addConstraintExpr :: Expr -> TransformState ()
-addConstraintExpr = State.addConstraintClause.translateExpr
+addConstraintExpr e = do
+    str <- State.resolveExpr e
+    State.addConstraintClause str

@@ -9,7 +9,7 @@ makeSMTLibStr b t =
     startupStr
     ++ makeVarDecls (State.varNameMap t) (State.freshVarCnt t)
     ++ cornerVarDecls
-    ++ List.concatMap (makeClause False) ((State.constructionClauses t))
+    ++ List.concatMap (makeClause False) (List.reverse (State.constructionClauses t))
     ++ makeClause b (unifyClauses (State.assertionClauses t))
     ++ endStr
 

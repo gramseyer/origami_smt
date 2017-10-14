@@ -3,6 +3,10 @@ module State (
     Transform (constructionClauses, assertionClauses, freshVarCnt, varNameMap),
     Variable,
     Clause,
+    Expr (OP, VAR, CONST, BOOL, NEG, ASSIGN, SQR, LIST),
+    resolveExpr,
+    reduceExpr,
+    normalizeExpr,
     execTransform,
     getPointVars,
     getLineVars,
@@ -21,12 +25,28 @@ import qualified Data.List as List
 
 type TransformState a = State Transform a
 
+type Constant = (Int, Int)
+
+data Expr = OP String Expr Expr
+          | VAR String
+          | CONST' Constant
+          | BOOL Bool
+          | NEG Expr
+          | ASSIGN Variable Expr
+          -- Non normalized forms
+          | SQR Expr
+          | CONST Int
+          | LIST String [Expr]
+    deriving Show
+
 data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable), --(x,y)
                      lineMap :: Map.Map Parser.Identifier (Variable, Variable, Variable, Variable), --(x1, y1, x2, y2)
                      constructionClauses :: [Clause],
                      assertionClauses :: [Clause],
                      freshVarCnt :: Int,
-                     varNameMap :: Map.Map Int String}
+                     varNameMap :: Map.Map Int String,
+                     valueMap :: Map.Map String Expr
+                     }
 
 type Clause = String
 type Variable = String
@@ -43,7 +63,113 @@ initialState = T { pointMap = Map.fromList cornerVars,
                    constructionClauses = ["(= _right 1)", "(= _left 0)", "(= _top 1)", "(= _bottom 0)" ],
                    assertionClauses = [],
                    freshVarCnt =  0,
-                   varNameMap = Map.empty }
+                   varNameMap = Map.empty,
+                   valueMap = Map.fromList [("_left", CONST' (0,1)),
+                                            ("_right", CONST' (1,1)),
+                                            ("_top", CONST' (1,1)),
+                                            ("_bottom", CONST' (0,1))] }
+
+normalizeExpr :: Expr -> Expr
+-- remove weird forms
+normalizeExpr (SQR x) = OP "*" (normalizeExpr x) (normalizeExpr x)
+normalizeExpr (LIST str (x:(y:xs))) = OP str (normalizeExpr x) (normalizeExpr (LIST str (y:xs)))
+normalizeExpr (LIST str [x]) = (normalizeExpr x)
+-- recurse down expression tree
+normalizeExpr (CONST x) = (CONST' (x, 1))
+normalizeExpr (OP s e1 e2) = OP s (normalizeExpr e1) (normalizeExpr e2)
+normalizeExpr (NEG e) = NEG (normalizeExpr e)
+normalizeExpr (ASSIGN s e) = ASSIGN s (normalizeExpr e)
+normalizeExpr e = e
+
+-- Does not add to clause list.  Must be done elsewhere.
+resolveExpr :: Expr -> TransformState (String)
+resolveExpr e = do
+    vMap <- getValueMap
+    let e' = reduceExpr vMap (normalizeExpr e)
+    case e' of
+        ASSIGN v (CONST' x) -> bindVariable v (CONST' x)
+        ASSIGN v (BOOL b) -> bindVariable v (BOOL b)
+        _ -> return ()
+    return $ translateExpr e'
+
+showInt :: Int -> String
+showInt x = if x>= 0 then show x else "(- " ++ show (abs x) ++ ")"
+
+showBool :: Bool -> String
+showBool True = "true"
+showBool False = "false"
+
+translateExpr :: Expr -> String
+translateExpr (VAR v)         = v
+translateExpr (OP str e1 e2)  = "(" ++ str ++ " " ++ translateExpr e1 ++ " " ++ translateExpr e2 ++ ")"
+translateExpr (CONST' (x, y)) = "(/ " ++ showInt x ++ " " ++ showInt y ++ " )"
+translateExpr (NEG expr)      = "(not " ++ translateExpr expr ++ ")"
+translateExpr (BOOL b)        = showBool b
+translateExpr (ASSIGN s e)    = "(= " ++ s ++ " " ++ translateExpr e ++ ")"
+translateExpr k = error $ "unnormalized input to translateExpr" ++ show k
+
+reduceExpr :: Map.Map String Expr -> Expr -> Expr
+reduceExpr map (OP str e1 e2) = combine str (reduceExpr map e1) (reduceExpr map e2)
+reduceExpr map (VAR str) = case Map.lookup str map of
+    Just static -> static
+    Nothing -> VAR str
+reduceExpr map (CONST' x) = CONST' x
+reduceExpr map (BOOL b) = BOOL b
+reduceExpr map (NEG e) = negateExpr (reduceExpr map e)
+--reduceExpr map (BOOLOP str e1 e2) = boolCombine str (reduceMap map e1) (reduceMap map e2)
+reduceExpr map (ASSIGN str e) = ASSIGN str (reduceExpr map e)
+reduceExpr _ e = error $ show e
+
+negateExpr :: Expr -> Expr
+negateExpr (BOOL b) = BOOL (not b)
+negateExpr x = NEG x
+
+plus :: Constant -> Constant -> Constant
+plus (x1, y1) (x2, y2) = (x1*y2 + x2*y1, y1*y2)
+
+minus :: Constant -> Constant -> Constant
+minus (x1, y1) (x2, y2) = (x1*y2 - x2 * y1, y1*y2)
+
+times :: Constant -> Constant -> Constant
+times (x1, y1) (x2, y2) = (x1*x2, y1*y2)
+
+divide :: Constant -> Constant -> Constant
+divide (x1, y1) (x2, y2) = if (x2 == 0) then error "cannot divide by 0"
+                                        else  (x1*y2, y1*x2)
+
+comparison :: (Int -> Int -> Bool) -> Constant -> Constant -> Bool
+comparison f (x1, y1) (x2, y2) = ((x1*y2) `f` (x2*y1))
+
+equals :: Constant -> Constant -> Bool
+equals = comparison (==)
+
+lt :: Constant -> Constant -> Bool
+lt = comparison (<)
+
+gt :: Constant -> Constant -> Bool
+gt = comparison (>)
+
+lte :: Constant -> Constant -> Bool
+lte = comparison (<=)
+
+gte :: Constant -> Constant -> Bool
+gte = comparison (>=)
+
+combine :: String -> Expr -> Expr -> Expr
+combine "and" (BOOL False) _ = BOOL False
+combine "and" _ (BOOL False) = BOOL False
+combine "or" (BOOL True) _ = BOOL True
+combine "or" _ (BOOL True) = BOOL True
+combine "+" (CONST' x) (CONST' y) = CONST' (x `plus` y)
+combine "-" (CONST' x) (CONST' y) = CONST' (x `minus` y)
+combine "*" (CONST' x) (CONST' y) = CONST' (x `times` y)
+combine "/" (CONST' x) (CONST' y) = CONST' (x `divide` y) -- If this throws an error, then the situation wasn't satisfiable anyways
+combine "=" (CONST' x) (CONST' y) = BOOL (x `equals` y)
+combine "<" (CONST' x) (CONST' y) = BOOL (x `lt` y)
+combine ">" (CONST' x) (CONST' y) = BOOL (x `gt` y)
+combine ">=" (CONST' x) (CONST' y) = BOOL (x `gte` y)
+combine "<=" (CONST' x) (CONST' y) = BOOL (x `lte` y)
+combine str e1 e2 = OP str e1 e2
 
 execTransform :: TransformState a -> Transform
 execTransform st = execState st initialState 
@@ -87,6 +213,12 @@ freshNamedVarPair s = state $ \t
 disableNaming :: String -> String
 disableNaming str = str
 
+getValueMap :: TransformState (Map.Map String Expr)
+getValueMap = state $ \t -> (valueMap t, t)
+
+bindVariable :: Variable -> Expr -> TransformState ()
+bindVariable v e = state $ \t -> ((), t { valueMap = (Map.insert v e (valueMap t)) })
+
 addPoint :: Parser.Identifier -> TransformState (Variable, Variable)
 addPoint iden = do
     ptMap <- getPointMap
@@ -110,11 +242,11 @@ addLine iden = do
 
 addClause :: Clause -> TransformState ()
 addClause c = if c == "" then error "clause cannot be empty"
-                         else state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) })
+                         else state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) }) where
 
 addConstraintClause :: Clause -> TransformState ()
 addConstraintClause c = if c == "" then error "constraint clause cannot be empty" 
-                                   else state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) })
+                                   else state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) }) where
 
 doNothing :: TransformState ()
 doNothing = state $ \s -> ((), s)
