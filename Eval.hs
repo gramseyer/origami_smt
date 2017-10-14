@@ -24,27 +24,6 @@ executeConstructions = List.foldr ((>>) . (addConstraint addExpr)) State.doNothi
 executeConstraints :: [Parser.Constraint] -> TransformState ()
 executeConstraints = List.foldr ((>>) . (addConstraint addConstraintExpr)) State.doNothing
 
-{-data Expr = OP String Expr Expr
-          | VAR String
-          | SQR Expr
-          | CONST Int
-          | NEG Expr
-          | LIST String [Expr]
-
-translateExpr :: Expr -> String
-translateExpr (VAR v)        = v
-translateExpr (OP str e1 e2) = "(" ++ str ++ " " ++ translateExpr e1 ++ " " ++ translateExpr e2 ++ ")"
-translateExpr (SQR expr)     = "(* " ++ translateExpr expr ++ " " ++  translateExpr expr ++ " )"
-translateExpr (CONST x)      = if x >= 0 then show x else "(- " ++ show (abs x) ++ ")"
-translateExpr (NEG expr)     = "(not " ++ translateExpr expr ++ ")"
-translateExpr (LIST str e)   = "(" ++ str ++ " " ++ (List.concat (List.map ((++) " ") (List.map translateExpr e))) ++ ")"
--}
-
---type Expr = S.Expr
-
-
-
-
 distance :: (State.Variable, State.Variable)
          -> (State.Variable, State.Variable)
          -> Expr
@@ -98,9 +77,21 @@ addFold2Decl var arg1 arg2 = do
     (x1, y1, x2, y2) <- State.addLine var
     (a1, b1) <- State.getPointVars arg1
     (a2, b2) <- State.getPointVars arg2
-    addExpr $ OP "=" (distance (x1, y1) (a1, b1)) (distance (x1, y1) (a2, b2))
-    addExpr $ OP "=" (distance (x2, y2) (a1, b1)) (distance (x2, y2) (a2, b2))
-    addExpr $ OP ">" (distance (x1, y1) (x2, y2)) (CONST 0)
+    p1x <- midPoint (VAR a1) (VAR a2)
+    p1y <- midPoint (VAR b1) (VAR b2)
+    let dx = OP "-" (VAR a2) (VAR a1)
+    let dy = OP "-" (VAR b2) (VAR b1)
+    let dx' = OP "-" (CONST 0) dy
+    let dy' = dx
+    addExpr $ ASSIGN x1 p1x
+    addExpr $ ASSIGN y1 p1y
+    addExpr $ ASSIGN x2 (OP "+" p1x dx')
+    addExpr $ ASSIGN y2 (OP "+" p1y dy')
+    addExpr $ NEG (OP "and" (OP "=" (VAR a1) (VAR a2))
+                            (OP "=" (VAR b1) (VAR b2)))
+--    addExpr $ OP "=" (distance (x1, y1) (a1, b1)) (distance (x1, y1) (a2, b2))
+  --  addExpr $ OP "=" (distance (x2, y2) (a1, b1)) (distance (x2, y2) (a2, b2))
+    --addExpr $ OP ">" (distance (x1, y1) (x2, y2)) (CONST 0)
 
 addFold3Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold3Decl var arg1 arg2 = do
