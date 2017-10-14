@@ -3,7 +3,7 @@ module State (
     Transform (constructionClauses, assertionClauses, freshVarCnt, varNameMap),
     Variable,
     Clause,
-    Expr (OP, VAR, CONST, BOOL, NEG, ASSIGN, SQR, LIST),
+    Expr (OP, VAR, CONST, BOOL, NEG, ASSIGN, ASSIGNS, SQR, LIST),
     resolveExpr,
     reduceExpr,
     normalizeExpr,
@@ -32,11 +32,12 @@ data Expr = OP String Expr Expr
           | CONST' Constant
           | BOOL Bool
           | NEG Expr
-          | ASSIGN Variable Expr
+          | ASSIGNS [(Variable, Expr)]
           -- Non normalized forms
           | SQR Expr
           | CONST Int
           | LIST String [Expr]
+          | ASSIGN Variable Expr
     deriving Show
 
 data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable), --(x,y)
@@ -78,8 +79,15 @@ normalizeExpr (LIST str [x]) = (normalizeExpr x)
 normalizeExpr (CONST x) = (CONST' (x, 1))
 normalizeExpr (OP s e1 e2) = OP s (normalizeExpr e1) (normalizeExpr e2)
 normalizeExpr (NEG e) = NEG (normalizeExpr e)
-normalizeExpr (ASSIGN s e) = ASSIGN s (normalizeExpr e)
+normalizeExpr (ASSIGN s e) = ASSIGNS [(s, normalizeExpr e)]
+normalizeExpr (ASSIGNS xs) = ASSIGNS $  List.map (\(s, e)->(s, normalizeExpr e)) xs
 normalizeExpr e = e
+
+
+processAssign :: (Variable, Expr) -> TransformState ()
+processAssign (v, CONST' x) = bindVariable v (CONST' x)
+processAssign (v, BOOL b) = bindVariable v (BOOL b)
+processAssign _ = doNothing
 
 -- Does not add to clause list.  Must be done elsewhere.
 resolveExpr :: Expr -> TransformState (String)
@@ -87,8 +95,7 @@ resolveExpr e = do
     vMap <- getValueMap
     let e' = reduceExpr vMap (normalizeExpr e)
     case e' of
-        ASSIGN v (CONST' x) -> bindVariable v (CONST' x)
-        ASSIGN v (BOOL b) -> bindVariable v (BOOL b)
+        ASSIGNS xs -> List.foldr ((>>).processAssign) doNothing xs
         _ -> return ()
     return $ translateExpr e'
 
@@ -99,13 +106,16 @@ showBool :: Bool -> String
 showBool True = "true"
 showBool False = "false"
 
+translateAssign :: (Variable, Expr) -> String
+translateAssign (v, e) = "(= " ++ v ++ " " ++ translateExpr e ++ ")"
+
 translateExpr :: Expr -> String
 translateExpr (VAR v)         = v
 translateExpr (OP str e1 e2)  = "(" ++ str ++ " " ++ translateExpr e1 ++ " " ++ translateExpr e2 ++ ")"
 translateExpr (CONST' (x, y)) = "(/ " ++ showInt x ++ " " ++ showInt y ++ " )"
 translateExpr (NEG expr)      = "(not " ++ translateExpr expr ++ ")"
 translateExpr (BOOL b)        = showBool b
-translateExpr (ASSIGN s e)    = "(= " ++ s ++ " " ++ translateExpr e ++ ")"
+translateExpr (ASSIGNS xs)    = "(and " ++ List.concatMap translateAssign xs ++ ")"
 translateExpr k = error $ "unnormalized input to translateExpr" ++ show k
 
 reduceExpr :: Map.Map String Expr -> Expr -> Expr
@@ -116,9 +126,11 @@ reduceExpr map (VAR str) = case Map.lookup str map of
 reduceExpr map (CONST' x) = CONST' x
 reduceExpr map (BOOL b) = BOOL b
 reduceExpr map (NEG e) = negateExpr (reduceExpr map e)
---reduceExpr map (BOOLOP str e1 e2) = boolCombine str (reduceMap map e1) (reduceMap map e2)
-reduceExpr map (ASSIGN str e) = ASSIGN str (reduceExpr map e)
+reduceExpr map (ASSIGNS xs) = ASSIGNS (List.map (mapAssigns map) xs)
 reduceExpr _ e = error $ show e
+
+mapAssigns :: Map.Map String Expr -> (String, Expr) -> (String, Expr)
+mapAssigns m (v, e) = (v, reduceExpr m e)
 
 negateExpr :: Expr -> Expr
 negateExpr (BOOL b) = BOOL (not b)
@@ -134,8 +146,7 @@ times :: Constant -> Constant -> Constant
 times (x1, y1) (x2, y2) = (x1*x2, y1*y2)
 
 divide :: Constant -> Constant -> Constant
-divide (x1, y1) (x2, y2) = if (x2 == 0) then error "cannot divide by 0"
-                                        else  (x1*y2, y1*x2)
+divide (x1, y1) (x2, y2) = (x1*y2, y1*x2)
 
 comparison :: (Int -> Int -> Bool) -> Constant -> Constant -> Bool
 comparison f (x1, y1) (x2, y2) = ((x1*y2) `f` (x2*y1))
@@ -158,8 +169,12 @@ gte = comparison (>=)
 combine :: String -> Expr -> Expr -> Expr
 combine "and" (BOOL False) _ = BOOL False
 combine "and" _ (BOOL False) = BOOL False
+combine "and" (BOOL true) e = e
+combine "and" e (BOOL true) = e
 combine "or" (BOOL True) _ = BOOL True
 combine "or" _ (BOOL True) = BOOL True
+combine "or" (BOOL False) e = e
+combine "or" e (BOOL False) = e
 combine "+" (CONST' x) (CONST' y) = CONST' (x `plus` y)
 combine "-" (CONST' x) (CONST' y) = CONST' (x `minus` y)
 combine "*" (CONST' x) (CONST' y) = CONST' (x `times` y)

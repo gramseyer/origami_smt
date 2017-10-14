@@ -77,8 +77,8 @@ addFold2Decl var arg1 arg2 = do
     (x1, y1, x2, y2) <- State.addLine var
     (a1, b1) <- State.getPointVars arg1
     (a2, b2) <- State.getPointVars arg2
-    p1x <- midPoint (VAR a1) (VAR a2)
-    p1y <- midPoint (VAR b1) (VAR b2)
+    let p1x = getAvg (VAR a1) (VAR a2)
+    let p1y = getAvg (VAR b1) (VAR b2)
     let dx = OP "-" (VAR a2) (VAR a1)
     let dy = OP "-" (VAR b2) (VAR b1)
     let dx' = OP "-" (CONST 0) dy
@@ -89,65 +89,91 @@ addFold2Decl var arg1 arg2 = do
     addExpr $ ASSIGN y2 (OP "+" p1y dy')
     addExpr $ NEG (OP "and" (OP "=" (VAR a1) (VAR a2))
                             (OP "=" (VAR b1) (VAR b2)))
---    addExpr $ OP "=" (distance (x1, y1) (a1, b1)) (distance (x1, y1) (a2, b2))
-  --  addExpr $ OP "=" (distance (x2, y2) (a1, b1)) (distance (x2, y2) (a2, b2))
-    --addExpr $ OP ">" (distance (x1, y1) (x2, y2)) (CONST 0)
+
+assignIntersectPtData :: (Expr, Expr, Expr, Expr)
+                      -> (Expr, Expr, Expr, Expr)
+                      -> (Expr, Expr, Expr)
+assignIntersectPtData (x1, y1, x2, y2) (x3, y3, x4, y4) = (xNum, yNum, denom) where
+    denom = OP "-" (OP "*" (OP "-" x1 x2) (OP "-" y3 y4))
+                   (OP "*" (OP "-" y1 y2) (OP "-" x3 x4))
+    partA = OP "-" (OP "*" x1 y2) (OP "*" y1 x2)
+    partB = OP "-" (OP "*" x3 y4) (OP "*" y3 x4)
+    xNum = OP "-" (OP "*" partA (OP "-" x3 x4)) (OP "*" (OP "-" x1 x2) partB)
+    yNum = OP "-" (OP "*" partA (OP "-" y3 y4)) (OP "*" (OP "-" y1 y2) partB)
 
 addFold3Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold3Decl var arg1 arg2 = do
     (x1, y1, x2, y2) <- State.addLine var
     (a1, b1, a2, b2) <- State.getLineVars arg1
     (c1, d1, c2, d2) <- State.getLineVars arg2
-    let parallelConstr = getParallelConstr (a1, b2, a2, b2) (c1, d1, c2, d2)
+    --let parallelConstr = getParallelConstr (a1, b2, a2, b2) (c1, d1, c2, d2)
+    --let nonParallelConstr = NEG parallelConstr
+    --let (intX, intY) = getIntersectPt (x1, y1) (a1, b1, a2, b2) (c1, d1, c2, d2)
+    let (xNum, yNum, denom) = assignIntersectPtData (VAR a1, VAR b1, VAR a2, VAR b2)
+                                                    (VAR c1, VAR d1, VAR c2, VAR d2)
+    
+
+   -- let intX = OP "=" (VAR x1) (OP "/" xNum denom)
+   -- let intY = OP "=" (VAR y1) (OP "/" yNum denom)
+    let parallelConstr = OP "=" (CONST 0) denom
     let nonParallelConstr = NEG parallelConstr
-    let (intX, intY) = getIntersectPt (x1, y1) (a1, b1, a2, b2) (c1, d1, c2, d2)
+
     (dist1, dist2) <- State.freshNamedVarPair "fold3_dist"
-    addExpr $ OP "=" (VAR dist1) (distance (a1, b1) (a2, b2))
-    addExpr $ OP "=" (VAR dist2) (distance (c1, d1) (c2, d2))
+    addExpr $ OP "=" (SQR (VAR dist1)) (distance (a1, b1) (a2, b2))
+    addExpr $ OP "=" (SQR (VAR dist2)) (distance (c1, d1) (c2, d2))
+    addExpr $ OP "<" (CONST 0) (VAR dist1)
+    addExpr $ OP "<" (CONST 0) (VAR dist2)
     let intNorm1x = OP "/" (OP "-" (VAR a2) (VAR a1)) (VAR dist1)
     let intNorm1y = OP "/" (OP "-" (VAR b2) (VAR b1)) (VAR dist1)
     let intNorm2x = OP "/" (OP "-" (VAR c2) (VAR c1)) (VAR dist2)
     let intNorm2y = OP "/" (OP "-" (VAR d2) (VAR d1)) (VAR dist2)
-    mpdX <- midPoint intNorm1x intNorm2x
-    mpdY <- midPoint intNorm1y intNorm2y
-    mpdX' <- midPoint (OP "*" (CONST (-1)) intNorm1x) intNorm1y
-    mpdY' <- midPoint (OP "*" (CONST (-1)) intNorm2x) intNorm2y
+    (vx, vy) <- State.freshNamedVarPair "diagnostic"
+    let mpdX = getAvg intNorm1x intNorm2x
+    let mpdY = getAvg intNorm1y intNorm2y
+    let mpdX' = getAvg (OP "*" (CONST (-1)) intNorm2x) intNorm1x
+    let mpdY' = getAvg (OP "*" (CONST (-1)) intNorm2y) intNorm1y
+
+    addExpr $ ASSIGN vx mpdX
+    addExpr $ ASSIGN vy mpdY
 
     let mpX = OP "+" mpdX (VAR x1)
     let mpY = OP "+" mpdY (VAR y1)
     let mpX' = OP "+" mpdX' (VAR x1)
     let mpY' = OP "+" mpdY' (VAR y1)
 
-    parX1 <- midPoint (VAR a1) (VAR c1)
-    parY1 <- midPoint (VAR b1) (VAR d1)
-    parX2 <- midPoint (VAR a1) (VAR c2)
-    parY2 <- midPoint (VAR b1) (VAR d2)
-    (crossProdV, _) <- State.freshVarPair
+    let parX1 = getAvg (VAR a1) (VAR c1)
+    let parY1 = getAvg (VAR b1) (VAR d1)
+    let parX2 = getAvg (VAR a1) (VAR c2)
+    let parY2 = getAvg (VAR b1) (VAR d2)
+    (crossProdV, _) <- State.freshNamedVarPair "fold3CrossDot"
 
     let parCond = OP "and" parallelConstr
-                           (OP "and" (OP "and" (OP "=" (VAR x1) parX1)
-                                               (OP "=" (VAR y1) parY1))
-                                     (OP "and" (OP "=" (VAR x2) parX2)
-                                               (OP "=" (VAR y2) parY2)))
+                           (ASSIGNS [(x1, parX1), (y1, parY1), (x2, parX2), (y2, parY2)])
+                      --     (OP "and" (OP "and" (OP "=" (VAR x1) parX1)
+                        --                       (OP "=" (VAR y1) parY1))
+                          --           (OP "and" (OP "=" (VAR x2) parX2)
+                            --                   (OP "=" (VAR y2) parY2)))
     let crossProd = OP "-" (OP "*" (OP "-" (VAR a2) (VAR a1))
                                    (OP "-" (VAR d2) (VAR d1)))
                            (OP "*" (OP "-" (VAR b2) (VAR b1))
                                    (OP "-" (VAR c2) (VAR c1)))
-    addExpr $ OP "=" crossProd (VAR crossProdV)   
-
+    addExpr $ ASSIGN crossProdV crossProd    
+    
     let selectConstr = LIST "or" [OP "and" (OP "<" (CONST 0) (VAR crossProdV))
-                                           (OP "and" (OP "=" (VAR x2) mpX)
-                                                   (OP "=" (VAR y2) mpY)),
+                                           (ASSIGNS [(x2, mpX), (y2, mpY)]),
+                                     --      (OP "and" (OP "=" (VAR x2) mpX)
+                                       --            (OP "=" (VAR y2) mpY)),
                                   OP "and" (OP ">" (CONST 0) (VAR crossProdV))
-                                           (OP "and" (OP "=" (VAR x2) mpX')
-                                                   (OP "=" (VAR y2) mpY')),
+                                           (ASSIGNS [(x2, mpX'), (y2, mpY')]),
+                                         --  (OP "and" (OP "=" (VAR x2) mpX')
+                                           --        (OP "=" (VAR y2) mpY')),
                                   OP "=" (CONST 0) (VAR crossProdV)]
-    addExpr selectConstr
     let nParCond = OP "and" nonParallelConstr
-                            (OP "and" intX intY)
-                                      
+                            (ASSIGNS [(x1, OP "/" xNum denom), (y1, OP "/" yNum denom)])
+    
     let totalCond = OP "or" parCond nParCond
     addExpr totalCond
+    addExpr selectConstr
 
 {-addNFold3Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addNFold3Decl var arg1 arg2 = do
@@ -741,6 +767,9 @@ addFold7Decl var p l1 l2 = do
     let dy' = OP "-" (CONST 0) dxl1
     addExpr $ OP "=" (VAR x2) (OP "+" mpx dx')
     addExpr $ OP "=" (VAR y2) (OP "+" mpy dy')
+
+getAvg :: Expr -> Expr -> Expr
+getAvg a b = OP "/" (OP "+" a b) (CONST 2)
 
 midPoint :: Expr -> Expr -> TransformState (Expr)
 midPoint a b = do
