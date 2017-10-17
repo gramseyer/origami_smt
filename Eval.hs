@@ -500,6 +500,7 @@ fold6FindRoots p1 l1 p2 l2 = do
     roots <- getDistinctRootCount coeffs
     (t1, t2) <- State.freshNamedVarPair "root"
     (t3, _)  <- State.freshNamedVarPair "root"
+    -- roots has already been assigned, these are equality checks
     let distinctCond = LIST "or" [OP "and" (OP "=" (VAR roots) (CONST 3))
                                            (OP "and" ( (OP "<" (VAR t2) (VAR t1)))
                                                      ( (OP "<" (VAR t3) (VAR t2)))),

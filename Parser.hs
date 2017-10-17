@@ -85,9 +85,7 @@ vardeclaration = do
     string "VAR"
     whitespace
     name <- identifier
-    whitespace
-    endl
-    many ignore
+    endCommand
     return $ VAR_DECL name
 
 declaration :: Parser Declaration
@@ -164,9 +162,7 @@ ternarydecmaker str cons = do
     pointCenter <- identifier
     whitespace
     line <- identifier
-    whitespace
-    endl
-    many ignore
+    endCommand
     return $ cons varname pointMove pointCenter line
 
 quaternarydecmaker :: String
@@ -191,9 +187,7 @@ quaternarydecmaker str cons = do
     p2 <- identifier
     whitespace
     l2 <- identifier
-    whitespace
-    endl
-    many ignore
+    endCommand
     return $ cons varname p1 l1 p2 l2
 
 intersectdec :: Parser Declaration
@@ -305,9 +299,7 @@ decmaker str cons = do
     arg1 <- identifier
     whitespace
     arg2 <- identifier
-    whitespace
-    endl
-    many ignore
+    endCommand
     return $ cons varname arg1 arg2
 
 angleEq :: Parser Constraint
@@ -342,6 +334,13 @@ angle = do
 
 identifier :: Parser Identifier
 identifier = many alphaNum
+
+endCommand :: Parser ()
+endCommand = do
+    whitespace
+    endl
+    many ignore
+    return ()
 
 ignore :: Parser ()
 ignore = comment <|> whiteline

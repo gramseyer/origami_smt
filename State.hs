@@ -87,6 +87,7 @@ normalizeExpr e = e
 processAssign :: (Variable, Expr) -> TransformState ()
 processAssign (v, CONST' x) = bindVariable v (CONST' x)
 processAssign (v, BOOL b) = bindVariable v (BOOL b)
+processAssign (v, VAR newVar) = bindVariable v (VAR newVar)
 processAssign _ = doNothing
 
 -- Does not add to clause list.  Must be done elsewhere.
