@@ -396,17 +396,16 @@ fold6Find3Solutions :: Int
                     -> TransformState ((Expr, Expr, Expr, Expr), (Expr, Expr, Expr, Expr), (Expr, Expr, Expr, Expr))
 fold6Find3Solutions solNum p1 l1 p2 l2 = do
     (t1, t2, t3) <- fold6FindRoots p1 l1 p2 l2
-    (vx, vy) <- fold6GetCompareVector p1 l1
-    s1 <- findSolnForRoot t1 p1 l1 p2 l2
-    s2 <- findSolnForRoot t2 p1 l1 p2 l2
-    s3 <- findSolnForRoot t3 p1 l1 p2 l2
+    compareVector <- fold6GetCompareVector p1 l1
+    s1 <- findSolnForRoot t1 p1 l1 p2 l2 compareVector
+    s2 <- findSolnForRoot t2 p1 l1 p2 l2 compareVector
+    s3 <- findSolnForRoot t3 p1 l1 p2 l2 compareVector
 
     conditionalAddExpr (solNum >= 2) t1 t2
     conditionalAddExpr (solNum == 3) t2 t3
- --   if solNum >= 2 then addExpr $ OP "<" (VAR t2) (VAR t1) else return ()
-   -- if solNum == 3 then addExpr $ OP "<" (VAR t3) (VAR t2) else return ()
     return (s1, s2, s3)
 
+{-
 fold6Find2Solutions :: Parser.Identifier
                     -> Parser.Identifier
                     -> Parser.Identifier
@@ -431,7 +430,7 @@ fold6Find1Solution p1 l1 p2 l2 = do
     addExpr $ OP "=" (VAR t1) (VAR t2)
     addExpr $ OP "=" (VAR t2) (VAR t3)
     return s
-
+-}
 fold6GetCompareVector :: Parser.Identifier
                       -> Parser.Identifier
                       -> TransformState (Expr, Expr)
@@ -440,12 +439,12 @@ fold6GetCompareVector p1 l1 = do
     (a1, b1, a2, b2) <- State.getLineVars l1
 
     (x0, y0) <- State.freshNamedVarPair "basept_parabola"
-    let (xConstr, yConstr) = getIntersectPtExprs (x0, y0)
+    let (xNum, yNum, denom) = assignIntersectPtData
                                  (VAR a1, VAR b1, VAR a2, VAR b2)
                                  (VAR xc, VAR yc, OP "+" (VAR xc) (OP "-" (VAR b1) (VAR b2)),
                                                   OP "+" (VAR yc) (OP "-" (VAR a2) (VAR a1)))
-    addExpr xConstr
-    addExpr yConstr
+    addExpr $ ASSIGN x0 (OP "/" xNum denom)
+    addExpr $ ASSIGN y0 (OP "/" yNum denom)
     let crossProd = crossProdExpr (OP "-" (VAR a2) (VAR a1), OP "-" (VAR b2) (VAR b1))
                                   (OP "-" (VAR xc) (VAR x0), OP "-" (VAR yc) (VAR y0))
     (vx, vy) <- State.freshVarPair
@@ -462,11 +461,12 @@ findSolnForRoot :: State.Variable
                 -> Parser.Identifier
                 -> Parser.Identifier
                 -> Parser.Identifier
+                -> (Expr, Expr) -- result of fold6GetCompareVector
                 -> TransformState (Expr, Expr, Expr, Expr)
-findSolnForRoot t p1 l1 p2 l2 = do
+findSolnForRoot t p1 l1 p2 l2 (u1px, u1py)= do
     (x1, y1) <- State.getPointVars p1
     (a1, b1, a2, b2) <- State.getLineVars l1
-    (u1px, u1py) <- fold6GetCompareVector p1 l1
+    --(u1px, u1py) <- fold6GetCompareVector p1 l1
     let u1x = OP "-" (CONST 0) u1py
     let u1y = u1px
     let d1 = dot (u1x, u1y) (VAR a1, VAR b1)
@@ -608,8 +608,6 @@ fold6DeclGetCoeffs p1 l1 p2 l2 = do
     addExpr $ OP "=" v1y v1y'
     addExpr $ OP "=" v2x v2x'
     addExpr $ OP "=" v2y v2y'
-
-
 
     let c1 = OP "-" (dot (VAR x2, VAR y2) (u2x, u2y)) d2
     let c2 = OP "*" (CONST 2) (dot (v2x, v2y) (u1px, u1py))
