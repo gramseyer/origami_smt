@@ -657,8 +657,11 @@ addFold7Decl var p l1 l2 = do
     (a1, b1, a2, b2) <- State.getLineVars l1
     (c1, d1, c2, d2) <- State.getLineVars l2
     (tempx, tempy) <- State.freshVarPair
-    let newX = OP "+" (VAR x) (OP "-" (VAR a2) (VAR a1))
-    let newY = OP "+" (VAR y) (OP "-" (VAR b2) (VAR b1))
+    (vx, vy) <- State.freshVarPair
+    addExpr $ ASSIGN vx (OP "-" (VAR a2) (VAR a1))
+    addExpr $ ASSIGN vy (OP "-" (VAR b2) (VAR b1))
+    let newX = OP "+" (VAR x) (VAR vx)
+    let newY = OP "+" (VAR y) (VAR vy)
     let (pl2x, pl2y, denom) = assignIntersectPtData (VAR x, VAR y, newX, newY) (VAR c1, VAR d1, VAR c2, VAR d2)
     addExpr $ ASSIGN tempx pl2x
     addExpr $ ASSIGN tempy pl2y
@@ -666,8 +669,8 @@ addFold7Decl var p l1 l2 = do
     let mpy = getAvg (VAR tempy) (VAR y)
     addExpr $ ASSIGN x1 mpx
     addExpr $ ASSIGN y1 mpy
-    let dxl1 = OP "-" (VAR a2) (VAR a1)
-    let dyl1 = OP "-" (VAR b2) (VAR b1)
+    let dxl1 = VAR vx
+    let dyl1 = VAR vy
     let dx' = dyl1
     let dy' = OP "-" (CONST 0) dxl1
     addExpr $ ASSIGN x2 (OP "+" mpx dx')
