@@ -118,11 +118,14 @@ addFold3Decl var arg1 arg2 = do
     let parallelConstr = OP "=" (CONST 0) denom
     let nonParallelConstr = NEG parallelConstr
 
-    (dist1, dist2) <- State.freshNamedVarPair "fold3_dist"
-    addExpr $ OP "=" (SQR (VAR dist1)) (distance (a1, b1) (a2, b2))
-    addExpr $ OP "=" (SQR (VAR dist2)) (distance (c1, d1) (c2, d2))
-    addExpr $ OP "<" (CONST 0) (VAR dist1)
-    addExpr $ OP "<" (CONST 0) (VAR dist2)
+
+    dist1 <- getConstructSqrt (distance (a1, b1) (a2, b2))
+    dist2 <- getConstructSqrt (distance (c1, d1) (c2, d2))
+    --(dist1, dist2) <- State.freshNamedVarPair "fold3_dist"
+    --addExpr $ OP "=" (SQR (VAR dist1)) (distance (a1, b1) (a2, b2))
+   -- addExpr $ OP "=" (SQR (VAR dist2)) (distance (c1, d1) (c2, d2))
+   -- addExpr $ OP "<" (CONST 0) (VAR dist1)
+   -- addExpr $ OP "<" (CONST 0) (VAR dist2)
     let intNorm1x = OP "/" (OP "-" (VAR a2) (VAR a1)) (VAR dist1)
     let intNorm1y = OP "/" (OP "-" (VAR b2) (VAR b1)) (VAR dist1)
     let intNorm2x = OP "/" (OP "-" (VAR c2) (VAR c1)) (VAR dist2)
@@ -278,10 +281,11 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     let quadB = OP "*" (CONST 2) (OP "+" (OP "*" (OP "-" (VAR c2) (VAR c1)) (OP "-" (VAR c1) (VAR a)))
                                          (OP "*" (OP "-" (VAR d2) (VAR d1)) (OP "-" (VAR d1) (VAR b))))
     let quadC = OP "-" (OP "+" (SQR (OP "-" (VAR c1) (VAR a))) (SQR (OP "-" (VAR d1) (VAR b)))) r2
-    (desc, _) <- State.freshNamedVarPair "fold5Diagnostics"
+    (_, crossProdV) <- State.freshNamedVarPair "fold5Diagnostics"
     let descExpr = OP "-" (SQR quadB) (OP "*" (OP "*" (CONST 2) quadA) quadC)
-    addExpr $ OP "=" (SQR (VAR desc)) descExpr
-    addExpr $ OP ">" (VAR desc) (CONST 0)
+    --addExpr $ OP "=" (SQR (VAR desc)) descExpr
+    --addExpr $ OP ">" (VAR desc) (CONST 0)
+    desc <- getConstructSqrt descExpr
     let sol1 = OP "/" (OP "+" (OP "-" (CONST 0) quadB) (VAR desc))
                       (OP "*" (CONST 2) quadA)
     let sol2 = OP "/" (OP "-" (OP "-" (CONST 0) quadB) (VAR desc))
@@ -289,10 +293,10 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     (s1, s2) <- State.freshNamedVarPair "fold5Sols"
     addExpr $ ASSIGN s1 sol1
     addExpr $ ASSIGN s2 sol2
-    let sol1x = (OP "+" (VAR c1) (OP "*" sol1 (OP "-" (VAR c2) (VAR c1))))
-    let sol1y = (OP "+" (VAR d1) (OP "*" sol1 (OP "-" (VAR d2) (VAR d1))))
-    let sol2x = (OP "+" (VAR c1) (OP "*" sol2 (OP "-" (VAR c2) (VAR c1))))
-    let sol2y = (OP "+" (VAR d1) (OP "*" sol2 (OP "-" (VAR d2) (VAR d1))))
+    let sol1x = (OP "+" (VAR c1) (OP "*" (VAR s1) (OP "-" (VAR c2) (VAR c1))))
+    let sol1y = (OP "+" (VAR d1) (OP "*" (VAR s1) (OP "-" (VAR d2) (VAR d1))))
+    let sol2x = (OP "+" (VAR c1) (OP "*" (VAR s2) (OP "-" (VAR c2) (VAR c1))))
+    let sol2y = (OP "+" (VAR d1) (OP "*" (VAR s2) (OP "-" (VAR d2) (VAR d1))))
 
     let wx = OP "-" sol1x (VAR a)
     let wy = OP "-" sol1y (VAR b)
@@ -305,20 +309,22 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     let sol2y' = OP "+" sol2y (vx)
 
     let crossProd = crossProdExpr (vx, vy) (wx, wy)
-    
+
+    addExpr $ ASSIGN crossProdV crossProd
+
     let sol1Expr = ASSIGNS [(x2, sol1x'), (y2, sol1y')]
     let sol2Expr = ASSIGNS [(x2, sol2x'), (y2, sol2y')]
 
     let firstStr = if flag then ">=" else "<="
     let secondStr = if flag then "<=" else ">="
 
-    let sol1Constrained = OP "and" (OP firstStr crossProd (CONST 0)) sol1Expr
-    let sol2Constrained = OP "and" (OP secondStr crossProd (CONST 0)) sol2Expr
+    let sol1Constrained = OP "and" (OP firstStr (VAR crossProdV) (CONST 0)) sol1Expr
+    let sol2Constrained = OP "and" (OP secondStr (VAR crossProdV) (CONST 0)) sol2Expr
 
 
 
-    let centerExpr = ASSIGNS  [(x1, (VAR xc)), (y1, (VAR yc))]
-    let totalExpr = OP "and" centerExpr (OP "or" sol1Constrained sol2Constrained)
+    addExpr $ ASSIGNS  [(x1, (VAR xc)), (y1, (VAR yc))]
+    let totalExpr = OP "or" sol1Constrained sol2Constrained
     addExpr totalExpr
 
 {-addNFold5Decl :: Parser.Identifier
@@ -395,8 +401,8 @@ fold6Find3Solutions :: Int
                     -> Parser.Identifier
                     -> TransformState ((Expr, Expr, Expr, Expr), (Expr, Expr, Expr, Expr), (Expr, Expr, Expr, Expr))
 fold6Find3Solutions solNum p1 l1 p2 l2 = do
-    (t1, t2, t3) <- fold6FindRoots p1 l1 p2 l2
     compareVector <- fold6GetCompareVector p1 l1
+    (t1, t2, t3) <- fold6FindRoots p1 l1 p2 l2 compareVector
     s1 <- findSolnForRoot t1 p1 l1 p2 l2 compareVector
     s2 <- findSolnForRoot t2 p1 l1 p2 l2 compareVector
     s3 <- findSolnForRoot t3 p1 l1 p2 l2 compareVector
@@ -453,7 +459,9 @@ fold6GetCompareVector p1 l1 = do
 
     addExpr $ OP "or" (OP "and" (OP ">" crossProd (CONST 0)) (ASSIGN vy (OP "-" (VAR b2) (VAR b1))))
                       (OP "and" (OP "<" crossProd (CONST 0)) (ASSIGN vy (OP "-" (VAR b1) (VAR b2))))
-    return (VAR vx, VAR vy)
+    norm <- getConstructSqrt (OP "+" (SQR (VAR vx)) (SQR (VAR vy)))
+
+    return (OP "/" (VAR vx) (VAR norm), OP "/" (VAR vy) (VAR norm))
 
 
 findSolnForRoot :: State.Variable
@@ -467,8 +475,8 @@ findSolnForRoot t p1 l1 p2 l2 (u1px, u1py)= do
     (x1, y1) <- State.getPointVars p1
     (a1, b1, a2, b2) <- State.getLineVars l1
     --(u1px, u1py) <- fold6GetCompareVector p1 l1
-    let u1x = OP "-" (CONST 0) u1py
-    let u1y = u1px
+    let u1y = OP "-" (CONST 0) u1px
+    let u1x = u1py
     let d1 = dot (u1x, u1y) (VAR a1, VAR b1)
     (x2, y2) <- State.getPointVars p2
     (a3, b3, a4, b4) <- State.getLineVars l2
@@ -494,13 +502,18 @@ fold6FindRoots :: Parser.Identifier
                -> Parser.Identifier
                -> Parser.Identifier
                -> Parser.Identifier
+               -> (Expr, Expr)
                -> TransformState (State.Variable, State.Variable, State.Variable)
-fold6FindRoots p1 l1 p2 l2 = do
-    coeffs <- fold6DeclGetCoeffs p1 l1 p2 l2
+fold6FindRoots p1 l1 p2 l2 u1p = do
+    coeffs <- fold6DeclGetCoeffs p1 l1 p2 l2 u1p
     roots <- getDistinctRootCount coeffs
     (t1, t2) <- State.freshNamedVarPair "root"
     (t3, _)  <- State.freshNamedVarPair "root"
+    (t1', t2') <- State.freshNamedVarPair "root_rationalized"
+    (t3', _) <- State.freshNamedVarPair "root_rationalized"
     -- roots has already been assigned, these are equality checks
+    --addExpr $ OP "and" (OP ">=" (VAR roots) (CONST 3)) (OP "<" (VAR t3) (VAR t2))
+    --addExpr $ OP "and" (OP ">=" (VAR roots) (CONST 2)) (OP "<" (VAR t2) (VAR t1))
     let distinctCond = LIST "or" [OP "and" (OP "=" (VAR roots) (CONST 3))
                                            (OP "and" ( (OP "<" (VAR t2) (VAR t1)))
                                                      ( (OP "<" (VAR t3) (VAR t2)))),
@@ -510,11 +523,14 @@ fold6FindRoots p1 l1 p2 l2 = do
     addExpr $ findRootExpr coeffs t1
     addExpr $ findRootExpr coeffs t2
     addExpr $ findRootExpr coeffs t3
+    --addExpr $ OP "<=" (SQR (OP "-" (VAR t1) (VAR t1'))) errorTerm
+    --addExpr $ OP "<=" (SQR (OP "-" (VAR t2) (VAR t2'))) errorTerm
+    --addExpr $ OP "<=" (SQR (OP "-" (VAR t3) (VAR t3'))) errorTerm
     return (t1, t2, t3)
     
 findRootExpr :: (Expr, Expr, Expr, Expr) -> State.Variable -> Expr
 findRootExpr (a, b, c, d) t = 
-    OP "=" (CONST 0) $
+    OP ">=" errorTerm $ SQR $
         LIST "+" [LIST "*" [a, VAR t, VAR t, VAR t],
                   LIST "*" [b, VAR t, VAR t], 
                   LIST "*" [c, VAR t],
@@ -531,6 +547,7 @@ getDistinctRootCount (a,b,c,d) = do
     (t3descV, t2descV) <- State.freshNamedVarPair "discriminants"
     addExpr $ ASSIGN t3descV t3desc
     addExpr $ ASSIGN t2descV t2desc
+    (diag, _) <-State.freshNamedVarPair "foobar"
 
     let t3cond' = LIST "and" [OP ">" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), ASSIGN roots (CONST 3)]
     let t3cond'' = LIST "and" [OP "=" (VAR t3descV) (CONST 0), NEG (OP "=" (CONST 0) a), ASSIGN roots (CONST 2)]
@@ -555,11 +572,12 @@ getNormedPerpVector l = do
     (a1, b1, a2, b2) <- State.getLineVars l
     let u1px' = OP "-" (VAR a2) (VAR a1)
     let u1py' = OP "-" (VAR b2) (VAR b1)
-    let u1x' = OP "-" (CONST 0) u1py'
-    let u1y' = u1px'
-    (norm1, _) <- State.freshVarPair
-    addExpr $ OP "=" (SQR (VAR norm1)) (OP "+" (SQR u1px') (SQR u1py'))
-    addExpr $ OP ">" (VAR norm1) (CONST 0)
+    let u1y' = OP "-" (CONST 0) u1px'
+    let u1x' = u1py'
+    --(norm1, _) <- State.freshVarPair
+    norm1 <- getConstructSqrt (OP "+" (SQR u1px') (SQR u1py'))
+    --addExpr $ OP "=" (SQR (VAR norm1)) (OP "+" (SQR u1px') (SQR u1py'))
+    --addExpr $ OP ">" (VAR norm1) (CONST 0)
     let u1x = OP "/" u1x' (VAR norm1)
     let u1y = OP "/" u1y' (VAR norm1)
     let u1px = OP "/" u1px' (VAR norm1)
@@ -570,11 +588,12 @@ fold6DeclGetCoeffs :: Parser.Identifier
                     -> Parser.Identifier
                     -> Parser.Identifier
                     -> Parser.Identifier
+                    -> (Expr, Expr)
                     -> TransformState (Expr, Expr, Expr, Expr)
-fold6DeclGetCoeffs p1 l1 p2 l2 = do
+fold6DeclGetCoeffs p1 l1 p2 l2 (u1px, u1py) = do
     (x1, y1) <- State.getPointVars p1
     (a1, b1, a2, b2) <- State.getLineVars l1
-    (u1x, u1y, u1px, u1py) <- getNormedPerpVector l1
+    (u1x, u1y, u1px', u1py') <- getNormedPerpVector l1
 
     let d1 = dot (u1x, u1y) (VAR a1, VAR b1)
     (x2, y2) <- State.getPointVars p2
@@ -596,8 +615,8 @@ fold6DeclGetCoeffs p1 l1 p2 l2 = do
     let d2 = dot (u2x, u2y) (VAR a3, VAR b3)
     let v1x' = OP "+" (VAR x1) (OP "-" (OP "*" d1 u1x) (OP "*" (CONST 2) (VAR x2)))
     let v1y' = OP "+" (VAR y1) (OP "-" (OP "*" d1 u1y) (OP "*" (CONST 2) (VAR y2)))
-    let v2x' = OP "-" (OP "*" d1 u1x) (VAR x2)
-    let v2y' = OP "-" (OP "*" d1 u1y) (VAR y2)
+    let v2x' = OP "-" (OP "*" d1 u1x) (VAR x1)
+    let v2y' = OP "-" (OP "*" d1 u1y) (VAR y1)
     (v1xV, v1yV) <- State.freshVarPair
     (v2xV, v2yV) <- State.freshVarPair
     let v1x = VAR v1xV
@@ -674,6 +693,16 @@ addFold7Decl var p l1 l2 = do
     addExpr $ ASSIGN x2 (OP "+" mpx dx')
     addExpr $ ASSIGN y2 (OP "+" mpy dy')
 
+errorTerm :: Expr
+errorTerm = OP "/" (CONST 1) (CONST 200)--485760000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000)--922337203685477580700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000)
+
+getConstructSqrt :: Expr -> TransformState (Variable)
+getConstructSqrt e = do
+    (var, _) <- State.freshVarPair
+    addExpr $ OP "<=" (SQR (OP "-" e (SQR (VAR var)))) errorTerm
+    addExpr $ OP ">=" (VAR var) (CONST 0)
+    return var
+
 getAvg :: Expr -> Expr -> Expr
 getAvg a b = OP "/" (OP "+" a b) (CONST 2)
 
@@ -720,9 +749,9 @@ getIntersectPt v (x1, y1, x2, y2) (x3, y3, x4, y4) =
 
 pointInBox :: (State.Variable, State.Variable) -> Expr
 pointInBox (x, y) = OP "and" (OP "and" (OP ">=" (VAR x) (CONST 0))
-                                       (OP "<=" (VAR x) (CONST 1)))
+                                       (OP "<=" (VAR x) (CONST State.paperSize)))
                              (OP "and" (OP ">=" (VAR y) (CONST 0))
-                                       (OP "<=" (VAR y) (CONST 1)))
+                                       (OP "<=" (VAR y) (CONST State.paperSize)))
 
 addConstraint :: (Expr -> TransformState ()) -> Parser.Constraint -> TransformState ()
 addConstraint logExpr (Parser.CN_PARALLEL var1 var2) = do

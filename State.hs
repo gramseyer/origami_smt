@@ -14,7 +14,8 @@ module State (
     freshNamedVarPair,
     addClause,
     addConstraintClause,
-    doNothing) where
+    doNothing,
+    paperSize) where
 
 import Parser
 import qualified Data.Map as Map
@@ -23,7 +24,7 @@ import qualified Data.List as List
 
 type TransformState a = State Transform a
 
-type Constant = (Int, Int)
+type Constant = (Integer, Integer)
 
 data Expr = OP String Expr Expr
           | VAR String
@@ -33,7 +34,7 @@ data Expr = OP String Expr Expr
           | ASSIGNS [(Variable, Expr)]
           -- Non normalized forms
           | SQR Expr
-          | CONST Int
+          | CONST Integer
           | LIST String [Expr]
           | ASSIGN Variable Expr
     deriving Show
@@ -50,6 +51,9 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
 type Clause = String
 type Variable = String
 
+paperSize :: Integer
+paperSize = 1
+
 cornerVars :: [(Parser.Identifier, (Variable, Variable))]
 cornerVars = [("LB", ("_left", "_bottom")),
               ("RB", ("_right", "_bottom")),
@@ -59,13 +63,16 @@ cornerVars = [("LB", ("_left", "_bottom")),
 initialState :: Transform
 initialState = T { pointMap = Map.fromList cornerVars,
                    lineMap = Map.empty, 
-                   constructionClauses = ["(= _right 1)", "(= _left 0)", "(= _top 1)", "(= _bottom 0)" ],
+                   constructionClauses = ["(= _right " ++ show paperSize ++ ")", 
+                                          "(= _left 0)",
+                                          "(= _top " ++ show paperSize ++ ")",
+                                          "(= _bottom 0)" ],
                    assertionClauses = [],
                    freshVarCnt =  0,
                    varNameMap = Map.empty,
                    valueMap = Map.fromList [("_left", CONST' (0,1)),
-                                            ("_right", CONST' (1,1)),
-                                            ("_top", CONST' (1,1)),
+                                            ("_right", CONST' (paperSize,1)),
+                                            ("_top", CONST' (paperSize,1)),
                                             ("_bottom", CONST' (0,1))] }
 
 normalizeExpr :: Expr -> Expr
@@ -98,7 +105,7 @@ resolveExpr e = do
         _ -> return ()
     return $ translateExpr e'
 
-showInt :: Int -> String
+showInt :: Integer -> String
 showInt x = if x>= 0 then show x else "(- " ++ show (abs x) ++ ")"
 
 showBool :: Bool -> String
@@ -154,7 +161,7 @@ removeGCD (a, b) = normalizeNegatives (a `div` c, b `div` c) where
 normalizeNegatives :: Constant -> Constant
 normalizeNegatives (a, b) = if (b < 0) then ((-a), (-b)) else (a, b)
 
-comparison :: (Int -> Int -> Bool) -> Constant -> Constant -> Bool
+comparison :: (Integer -> Integer -> Bool) -> Constant -> Constant -> Bool
 comparison f (x1, y1) (x2, y2) = ((x1*y2) `f` (x2*y1))
 
 equals :: Constant -> Constant -> Bool
