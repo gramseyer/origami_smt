@@ -3,13 +3,37 @@ module SMTLib (makeSMTLibStr) where
 import State
 import qualified Data.List as List
 import qualified Data.Map as Map
+{-
+makeZ3Str :: Bool -> State.Transform -> String
+makeZ3Str b t = 
+    z3startStr
+    ++ z3MakeVarDecls (State.varNameMap t) (State.freshVarCnt t)
+    ++ z3CornerVarDecls
+    ++ List.concatMap (z3makeClause False) (List.reverse (State.constructionClauses t))
+    ++ z3makeClause b (unifyClauses (State.assertionClauses t))
+    ++ z3endStr
+
+z3MakeVarDecl :: (Map.Map Int String) -> Int -> String
+z3MakeVarDecl varnames x = varname ++ "_x" ++ show x ++ " = Real('" ++ varname ++ "_x" ++ show x ++ "')\n"
+                        ++ varname ++ "_y" ++ show x ++ " = Real('" ++ varname ++ "_y" ++ show x ++ "')\n" where
+    varname = case Map.lookup x varnames of
+        Nothing -> error $ "couldn't find var number " ++ show x
+        Just name -> name
+
+z3makeVarDecls :: (Map.M
+-}
+z3CornerVarDecls :: String
+z3CornerVarDecls = "_left = Real('_left')\n"
+                ++ "_right = Real('_right')\n"
+                ++ "_top = Real('_top')\n"
+                ++ "_bottom = Real('_bottom')\n"
 
 makeSMTLibStr :: Bool -> State.Transform -> String
 makeSMTLibStr b t =
     startupStr
     ++ makeVarDecls (State.varNameMap t) (State.freshVarCnt t)
     ++ cornerVarDecls
-    ++ List.concatMap (makeClause False) (List.reverse (State.constructionClauses t))
+    ++ List.concatMap (makeClause False) (List.map Just (List.reverse (State.constructionClauses t)))
     ++ makeClause b (unifyClauses (State.assertionClauses t))
     ++ endStr
 
@@ -39,16 +63,17 @@ cornerVarDecls = "(" ++ vf ++ " _left " ++ vf2 ++ " Real)\n"
               ++ "(" ++ vf ++ " _top " ++ vf2 ++ " Real)\n"
               ++ "(" ++ vf ++ " _bottom " ++ vf2 ++ " Real)\n"
 
-foldClauses :: String -> String -> String
-foldClauses c1 c2 = "(and " ++ c1 ++ " " ++ c2 ++ ")"
+foldClauses :: Expr -> Expr -> Expr
+foldClauses c1 c2 = OP "and" c1 c2
 
-unifyClauses :: [String] -> String
-unifyClauses = List.foldr foldClauses ""
+unifyClauses :: [Expr] -> Maybe Expr
+unifyClauses [] = Nothing
+unifyClauses xs = Just $ List.foldr1 foldClauses xs
 
-makeClause :: Bool -> String -> String
-makeClause _ "" = ""
-makeClause False clause = "(assert " ++ clause ++ ")\n"
-makeClause True clause = "(assert (not " ++ clause ++ "))\n"
+makeClause :: Bool -> Maybe Clause -> String
+makeClause False (Just clause) = "(assert " ++ (smtlibTranslateExpr clause) ++ ")\n"
+makeClause True (Just clause) = "(assert (not " ++ (smtlibTranslateExpr clause) ++ "))\n"
+makeClause _ Nothing = ""
 
 endStr :: String
 endStr = "(get-info :all-statistics)\n"
@@ -56,3 +81,22 @@ endStr = "(get-info :all-statistics)\n"
       ++ "(get-model)\n"
       ++ "(get-info :all-statistics)\n"
       ++ "(exit)\n"
+
+smtlibTranslateExpr :: Expr -> String
+smtlibTranslateExpr (VAR v)         = v
+smtlibTranslateExpr (OP str e1 e2)  = "(" ++ str ++ " " ++ smtlibTranslateExpr e1 ++ " " ++ smtlibTranslateExpr e2 ++ ")"
+smtlibTranslateExpr (CONST' (x, y)) = "(/ " ++ showInt x ++ " " ++ showInt y ++ ")"
+smtlibTranslateExpr (NEG expr)      = "(not " ++ smtlibTranslateExpr expr ++ ")"
+smtlibTranslateExpr (BOOL b)        = showBool b
+smtlibTranslateExpr (ASSIGNS xs)    = "(and " ++ List.concatMap translateAssign xs ++ ")"
+translateExpr k = error $ "unnormalized input to smtlibTranslateExpr " ++ show k
+
+translateAssign :: (Variable, Expr) -> String
+translateAssign (v, e) = "(= " ++ v ++ " " ++ smtlibTranslateExpr e ++ ")"
+
+showBool :: Bool -> String
+showBool True = "true"
+showBool False = "false"
+
+showInt :: Integer -> String
+showInt x = if x >= 0 then show x else "(- " ++ show (abs x) ++ ")"

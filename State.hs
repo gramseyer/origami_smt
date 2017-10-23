@@ -3,7 +3,7 @@ module State (
     Transform (constructionClauses, assertionClauses, freshVarCnt, varNameMap),
     Variable,
     Clause,
-    Expr (OP, VAR, CONST, BOOL, NEG, ASSIGN, ASSIGNS, SQR, LIST),
+    Expr (OP, VAR, CONST, CONST', BOOL, NEG, ASSIGN, ASSIGNS, SQR, LIST),
     execTransform,
     resolveExpr,
     getPointVars,
@@ -48,7 +48,7 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
                      valueMap :: Map.Map String Expr
                      }
 
-type Clause = String
+type Clause = Expr
 type Variable = String
 
 paperSize :: Integer
@@ -63,10 +63,10 @@ cornerVars = [("LB", ("_left", "_bottom")),
 initialState :: Transform
 initialState = T { pointMap = Map.fromList cornerVars,
                    lineMap = Map.empty, 
-                   constructionClauses = ["(= _right " ++ show paperSize ++ ")", 
-                                          "(= _left 0)",
-                                          "(= _top " ++ show paperSize ++ ")",
-                                          "(= _bottom 0)" ],
+                   constructionClauses = [ASSIGNS [("_left", CONST' (0,1)),
+                                                   ("_right", CONST' (paperSize, 1)),
+                                                   ("_top", CONST' (paperSize, 1)),
+                                                   ("_bottom", CONST' (0,1))]],
                    assertionClauses = [],
                    freshVarCnt =  0,
                    varNameMap = Map.empty,
@@ -96,14 +96,14 @@ processAssign (v, VAR newVar) = bindVariable v (VAR newVar)
 processAssign _ = doNothing
 
 -- Does not add to clause list.  Must be done elsewhere.
-resolveExpr :: Expr -> TransformState (String)
+resolveExpr :: Expr -> TransformState (Expr)
 resolveExpr e = do
     vMap <- getValueMap
     let e' = reduceExpr vMap (normalizeExpr e)
     case e' of
         ASSIGNS xs -> List.foldr ((>>).processAssign) doNothing xs
         _ -> return ()
-    return $ translateExpr e'
+    return e'
 
 showInt :: Integer -> String
 showInt x = if x>= 0 then show x else "(- " ++ show (abs x) ++ ")"
@@ -269,12 +269,10 @@ addLine iden = do
             return (x1, y1, x2, y2)
 
 addClause :: Clause -> TransformState ()
-addClause c = if c == "" then error "clause cannot be empty"
-                         else state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) }) where
+addClause c = state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) }) where
 
 addConstraintClause :: Clause -> TransformState ()
-addConstraintClause c = if c == "" then error "constraint clause cannot be empty" 
-                                   else state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) }) where
+addConstraintClause c = state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) }) where
 
 doNothing :: TransformState ()
 doNothing = state $ \s -> ((), s)

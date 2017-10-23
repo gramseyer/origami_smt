@@ -2,11 +2,12 @@ import Parser
 import State
 import Eval
 import SMTLib
+import Z3Lib
 import System.Environment
 import System.IO
 
 run :: String -> Bool -> String
-run str b = SMTLib.makeSMTLibStr b $
+run str b = Z3Lib.makeZ3LibStr b $
                 State.execTransform $
                     Eval.computeTransform $
                         Parser.parseProgram str
@@ -14,7 +15,7 @@ run str b = SMTLib.makeSMTLibStr b $
 loadFile :: (String, Bool) -> IO (String, String, Bool)
 loadFile (str, b) = do
     contents <- readFile str
-    return (str ++ ".smt", contents, b)
+    return (str ++ ".py", contents, b)
 
 processArgs :: [String] -> IO (String, Bool)
 processArgs [name] = do

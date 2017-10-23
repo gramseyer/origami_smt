@@ -1,0 +1,3 @@
+Lbot = fold1 LB RB
+Lright = fold1 RT RB
+L3 = fold6_2 RT Lbot LB Lright
