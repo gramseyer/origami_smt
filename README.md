@@ -18,7 +18,7 @@
               | "fold4" <identifier> <identifier>
               | "fold5_sol1" <identifier> <identifier> <identifier>
               | "fold5_sol2" <identifier> <identifier> <identifier>
-              ; TODO the other folds
+              | <etc>
 
 <assignment> ::= <identifier> "=" <fold_decl>
 
