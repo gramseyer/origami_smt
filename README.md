@@ -1,3 +1,11 @@
+## Proving Statements about Origami Constructions
+
+Tool to prove that certain properties hold about various origami constructions.  Given a sequence of folds, characterized by the Huzita-Justin (Huzita-Hatori) axioms, this binary generates a sequence of constraints compatible with an SMT solver for nonlinear real arithmetic.  These can be used to prove that certain properties hold or do not hold about a given construction.
+
+One can assert that the statements specifying the construction hold, and then assert that statements specifying properties of the construction do not hold.  Then, "unsat" returned from the SMT solver proves that the properties always hold.
+
+This is well suited towards an SMT solver, as opposed to just a CAS, because this system supports having variables in the construction.  I.e. One could prove a construction trisects an angle, no matter what the original angle.
+
 ## Language Specification
 
 ```<identifier> ::= [a-zA-Z0-9]+
