@@ -540,8 +540,8 @@ getDistinctRootCount :: (Expr, Expr, Expr, Expr) -> TransformState (State.Variab
 getDistinctRootCount (a,b,c,d) = do
     (roots, _) <- State.freshNamedVarPair "rootCnt"
     let t3desc = OP "-" (OP "-" (OP "-" (LIST "*" [CONST 18, a, b, c, d]) (LIST "*" [CONST 4, b, b, b, d]))
-                                (LIST "-" [CONST 4, a, c, c, c]))
-                        (LIST "-" [CONST 27, a, a, d, d])
+                                (LIST "*" [CONST 4, a, c, c, c]))
+                        (LIST "*" [CONST 27, a, a, d, d])
     let t2desc = OP "-" (SQR c) (LIST "*" [CONST 4, b, d])
     
     (t3descV, t2descV) <- State.freshNamedVarPair "discriminants"
@@ -618,8 +618,8 @@ fold6DeclGetCoeffs p1 l1 p2 l2 (u1px, u1py) = do
     let v1y' = OP "+" (VAR y1) (OP "-" (OP "*" d1 u1y) (OP "*" (CONST 2) (VAR y2)))
     let v2x' = OP "-" (OP "*" d1 u1x) (VAR x1)
     let v2y' = OP "-" (OP "*" d1 u1y) (VAR y1)
-    (v1xV, v1yV) <- State.freshVarPair
-    (v2xV, v2yV) <- State.freshVarPair
+    (v1xV, v1yV) <- State.freshNamedVarPair "v1"
+    (v2xV, v2yV) <- State.freshNamedVarPair "v2"
     let v1x = VAR v1xV
     let v1y = VAR v1yV
     let v2x = VAR v2xV
