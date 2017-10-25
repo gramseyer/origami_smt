@@ -7,7 +7,7 @@ import System.Environment
 import System.IO
 
 run :: String -> Bool -> String
-run str b = Z3Lib.makeZ3LibStr b $
+run str b = SMTLib.makeOutputStr b $
                 State.execTransform $
                     Eval.computeTransform $
                         Parser.parseProgram str
@@ -15,7 +15,7 @@ run str b = Z3Lib.makeZ3LibStr b $
 loadFile :: (String, Bool) -> IO (String, String, Bool)
 loadFile (str, b) = do
     contents <- readFile str
-    return (str ++ ".py", contents, b)
+    return (str ++ ".smt", contents, b)
 
 processArgs :: [String] -> IO (String, Bool)
 processArgs [name] = do

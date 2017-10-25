@@ -1,4 +1,4 @@
-module SMTLib (makeSMTLibStr) where
+module SMTLib (makeOutputStr) where
 
 import State
 import qualified Data.List as List
@@ -28,8 +28,8 @@ z3CornerVarDecls = "_left = Real('_left')\n"
                 ++ "_top = Real('_top')\n"
                 ++ "_bottom = Real('_bottom')\n"
 
-makeSMTLibStr :: Bool -> State.Transform -> String
-makeSMTLibStr b t =
+makeOutputStr :: Bool -> State.Transform -> String
+makeOutputStr b t =
     startupStr
     ++ makeVarDecls (State.varNameMap t) (State.freshVarCnt t)
     ++ cornerVarDecls

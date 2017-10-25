@@ -1,11 +1,11 @@
-module Z3Lib (makeZ3LibStr) where
+module Z3Lib (makeOutputStr) where
 
 import State
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-makeZ3LibStr :: Bool -> State.Transform -> String
-makeZ3LibStr b t = 
+makeOutputStr :: Bool -> State.Transform -> String
+makeOutputStr b t = 
     startupStr 
     ++ makeVarDecls (State.varNameMap t) (State.freshVarCnt t)
     ++ cornerVarDecls

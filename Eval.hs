@@ -630,10 +630,13 @@ fold6DeclGetCoeffs p1 l1 p2 l2 (u1px, u1py) = do
     addExpr $ OP "=" v2y v2y'
     (u2xV, u2yV) <- State.freshNamedVarPair "getcoeff_u2"
     (u1xV, u1yV) <- State.freshNamedVarPair "getcoeff_u1"
+    (u1pxV, u1pyV) <- State.freshNamedVarPair "getcoeff_u1p"
     addExpr $ ASSIGN u1xV u1x
     addExpr $ ASSIGN u1yV u1y
     addExpr $ ASSIGN u2xV u2x
     addExpr $ ASSIGN u2yV u2y
+    addExpr $ ASSIGN u1pxV u1px
+    addExpr $ ASSIGN u1pyV u1py
 
     let c1 = OP "-" (dot (VAR x2, VAR y2) (u2x, u2y)) d2
     let c2 = OP "*" (CONST 2) (dot (v2x, v2y) (u1px, u1py))
@@ -668,7 +671,7 @@ fold6DeclGetCoeffs p1 l1 p2 l2 (u1px, u1py) = do
     return (VAR aV, VAR bV, VAR cV, VAR dV)
 
 dot :: (Expr, Expr) -> (Expr, Expr) -> Expr
-dot (x1, y1) (x2, y2) = OP "*" (OP "+" x1 x2) (OP "+" y1 y2)
+dot (x1, y1) (x2, y2) = OP "+" (OP "*" x1 x2) (OP "*" y1 y2)
 
 addFold7Decl :: Parser.Identifier
              -> Parser.Identifier
