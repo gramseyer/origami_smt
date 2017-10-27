@@ -5,6 +5,7 @@ import SMTLib
 import Z3Lib
 import System.Environment
 import System.IO
+import qualified Data.List as List
 
 run :: (State.Transform -> String) -> String -> String
 run f = f.State.execTransform.Eval.computeTransform.Parser.parseProgram
@@ -12,7 +13,9 @@ run f = f.State.execTransform.Eval.computeTransform.Parser.parseProgram
 loadFile :: (String, (State.Transform -> String), String) -> IO (String, String, (State.Transform -> String))
 loadFile (str, func, suffix) = do
     contents <- readFile str
-    return (str ++ suffix, contents, func)
+    let filename = str ++ suffix
+    putStrLn $ "Writing to " ++ filename
+    return (filename, contents, func)
 
 processArgs :: [String] -> IO (String, (State.Transform -> String), String)
 {-processArgs [name] = do
@@ -41,8 +44,13 @@ processArgs _ = do
     putStrLn "Usage: ./Main <input_file> <optiosn>"
     error "invalid usage"
 
+validateOptions :: [String] -> IO ([String])
+validateOptions (name:opts) = if not $ List.null (opts List.\\ ["--negate", "--z3"])
+                                  then error "invalid option"
+                                  else return (name:opts)
+
 outputFile :: (String, String, (State.Transform -> String)) -> IO ()
 outputFile (filename, str, f) = writeFile filename $ run f str
 
 main :: IO ()
-main = getArgs >>= processArgs >>= loadFile >>= outputFile
+main = getArgs >>= validateOptions >>= processArgs >>= loadFile >>= outputFile
