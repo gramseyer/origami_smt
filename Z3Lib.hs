@@ -54,7 +54,7 @@ translateExpr (OP "and" e1 e2) = "(And (" ++ translateExpr e1 ++ ", " ++ transla
 translateExpr (OP "or" e1 e2)  = "(Or (" ++ translateExpr e1 ++ ", " ++ translateExpr e2 ++ "))"
 translateExpr (OP "=" e1 e2)   = "(" ++ translateExpr e1 ++ " == " ++ translateExpr e2 ++ ")"
 translateExpr (OP binop e1 e2) = "(" ++ translateExpr e1 ++ binop  ++ translateExpr e2 ++ ")"
-translateExpr (CONST' (x,y)) = "(" ++ show x ++ " / " ++ show y ++ ")"
+translateExpr (CONST' (x,y)) = "(" ++ show x ++ ".0 / " ++ show y ++ ".0)"
 translateExpr (NEG expr) = "(Not (" ++ translateExpr expr ++ "))"
 translateExpr (BOOL b) = show b
 translateExpr (ASSIGNS xs) = "(And (" ++ List.foldr1 (\s1 -> (\s2 -> s1 ++ ", " ++ s2)) (List.map translateAssign xs) ++ "))"
