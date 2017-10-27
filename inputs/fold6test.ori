@@ -10,5 +10,7 @@ pright = intersect Lright Lhoriz
 pbot = intersect Lbot Lvert
 L1 = fold1 pleft RT
 L2 = fold1 ptop LB
-L3 = fold6_1/1 pbot L1 pright L2
-
+L3 = fold6_1 pbot L2 pright L1
+;prightint = intersect L3 Lright
+;pbotint = intersect L3 Lbot
+;L4 = fold3 L3 L1
