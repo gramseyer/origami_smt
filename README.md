@@ -7,7 +7,8 @@ One can assert that the statements specifying the construction hold, and then as
 This is well suited towards an SMT solver, as opposed to just a CAS, because this system supports having variables in the construction.  I.e. One could prove a construction trisects an angle, no matter what the original angle.
 
 ## Usage
-```ghc Main.hs
+```
+ghc Main.hs
 ./Main <input_file> <options>
 ```
 This will generate smt constraint file <input_file>.smt
