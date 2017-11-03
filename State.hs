@@ -51,6 +51,7 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
 
 type Clause = Expr
 type Variable = String --V (Symbolic SReal, String)
+
 {-
 instance Eq Variable where
     (V (_, x)) == (V (_, y)) = x==y

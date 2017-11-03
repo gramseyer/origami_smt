@@ -1,4 +1,4 @@
-module Prover (runSolvers) where
+module Prover (runSolver, runSolvers) where
 
 import Control.Monad
 import qualified Data.Map as Map
@@ -6,34 +6,64 @@ import Data.SBV
 import Data.SBV.Control
 import qualified Data.List as List
 import State
+import Control.Concurrent
+import Data.SBV.Internals
 
-runSolvers :: Bool -> State.Transform -> IO [(Variable, AlgReal)]
-runSolvers b t = runSMT $ makeSymbolicCalculation b t
+runSolvers :: Bool -> State.Transform -> IO (Map.Map String CW)
+runSolvers b t = do
+    solvers <- sbvAvailableSolvers
+    blocker <- newEmptyMVar
+    mapM_ (forkIO.(parallelHelper blocker (runSolver b t))) [disableIncrementalConfig yices] -- $ List.map disableIncrementalConfig $ [z3]
+    model <- takeMVar blocker
+    putStrLn $ show model
+    return model
 
-makeSymbolicCalculation :: Bool -> State.Transform -> Symbolic [(Variable, AlgReal)]
-makeSymbolicCalculation b t = do
+disableIncremental :: SMTSolver -> SMTSolver
+disableIncremental solver = solver { options = const ["--mcsat"]}
+
+disableIncrementalConfig :: SMTConfig -> SMTConfig
+disableIncrementalConfig config = config { solver = disableIncremental (solver config) }
+
+parallelHelper :: MVar (Map.Map String CW) -> (SMTConfig -> IO (Map.Map String CW)) -> SMTConfig -> IO ()
+parallelHelper blocker f config = do
+    result <- f config
+    putMVar blocker result
+
+runSolver :: Bool -> State.Transform -> SMTConfig -> IO (Map.Map String CW)
+runSolver b t config = runSMTWith config $ makeSymbolicCalculation (show . name . solver $ config) b t
+
+makeSymbolicCalculation :: String -> Bool -> State.Transform -> Symbolic (Map.Map String CW)
+makeSymbolicCalculation solverName b t = do
     varDeclMap <- makeVarDecls (State.varNameList t)
-  --  consts <- (liftM2 List.map) processConstants (State.constructionClauses t ++ State.assertionClauses t)
-  --  let totalMap = Map.union varDeclMap (Map.fromList consts)
     assertConstraints varDeclMap (State.constructionClauses t)
     if b then assertNegatedConstraints varDeclMap (State.assertionClauses t)
          else assertConstraints varDeclMap (State.assertionClauses t)
-
+    setLogic QF_NRA
     result <- query $ do
-        cs <- checkSat
+        cs <- getSMTResult
         case cs of
-            Unk -> do
-                 io $ putStrLn $ "smt returned unknown"
-                 return []
-            Unsat -> do
-                io $ putStrLn $ "smt returned unsat"
-                return []
-            Sat -> do
-                io $ putStrLn $ "smt returned sat"
-                model <- getModel
-                io $ putStrLn $ show model
-                return []      
+            Unknown _ _ -> do
+                 -- TODO wrap this all in a maybe and then have this return Nothing and then take mvars until we get a just
+                 io $ putStrLn $ solverName ++ "smt returned unknown"
+                 return Map.empty
+            Unsatisfiable _ -> do
+                io $ putStrLn $ solverName ++ "returned unsat"
+                return Map.empty
+            Satisfiable _ _ -> do
+                io $ putStrLn $ solverName ++ " returned sat"
+                --io $ putStrLn $ show model
+                return $ getModelDictionary cs
+            SatExtField _ _ -> do
+                io $ putStrLn $ solverName ++ " is wtf"
+                return Map.empty
+            ProofError _ _ -> do
+                io $ putStrLn $ solverName ++ " had an error"
+                return Map.empty
     return result
+
+--formatModel :: SMTModel -> [(Variable, AlgReal)]
+--formatModel model = List.map (\(str, cw) -> (str, fromCW cw)) (modelAssocs model)
+
 makeVarDecls :: [Variable] -> Symbolic (Map.Map Variable SReal)
 makeVarDecls varnames = liftM Map.fromList $ List.foldr (liftM2 (:)) (return []) (List.map makeVarDecl varnames)
     
@@ -41,18 +71,7 @@ makeVarDecl :: Variable -> Symbolic (Variable, SReal)
 makeVarDecl varname = do
     sVar <- sReal varname
     return (varname, sVar)
-{-
-processConstants :: Expr -> Symbolic [(Variable, SReal)]
-processConstants (OP _ e1 e2) = (processConstants e1) (liftM2 (++)) (processConstants e2)
-processConstants (NEG e) = processConstants e
-processConstants (ASSIGNS xs) = (liftM2 List.map) (processConstants.snd)
-processConstants (CONST' (x, y)) = do
-    let varname = makeConstVar (x, y)
-    var <- sReal varname
-    constrain $ 0.5 * var .== (fromInteger x)
-    return [(varname, var)]
-processConstants _ = return [] 
--}
+
 assertConstraints :: Map.Map Variable SReal -> [Clause] -> Symbolic ()
 assertConstraints map exprs = List.foldr (>>) (return ()) $
                                   List.map (constrain . makeConstraintBool map) exprs
