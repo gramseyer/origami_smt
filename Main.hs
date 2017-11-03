@@ -44,10 +44,6 @@ genPostScript b t = do
     let lines = List.map snd $ Map.toList (State.lineMap t)
     return $ Postscript.makeLines map lines
 
---Postscript.makeLines (Prover.runSolvers b t) $ List.map snd $ Map.toList (State.lineMap t)
-
-
-
 validateOptions :: [String] -> IO ([String])
 validateOptions (name:opts) = if not $ List.null (opts List.\\ ["--negate", "--z3", "--smt"])
                                   then error "invalid option"
@@ -56,10 +52,6 @@ validateOptions (name:opts) = if not $ List.null (opts List.\\ ["--negate", "--z
 outputFile :: (String, String, (State.Transform -> IO String)) -> IO ()
 outputFile (filename, str, f) = run f str >>= writeFile filename
 
-runProver :: (String, String, (State.Transform -> String)) -> IO ()
-runProver (filename, str, f) = do
-   vars <- (Prover.runSolvers False) . State.execTransform . Eval.computeTransform .  Parser.parseProgram $ str
-   putStrLn $ show vars
-
 main :: IO ()
-main = getArgs >>= validateOptions >>= processArgs >>= loadFile  >>= outputFile
+main = getArgs >>= validateOptions >>= processArgs >>= loadFile >>= outputFile
+

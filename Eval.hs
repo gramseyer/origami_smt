@@ -30,11 +30,6 @@ distance :: (State.Variable, State.Variable)
 distance (x1, y1) (x2, y2) = OP "+" (SQR (OP "-" (VAR x1) (VAR x2)))
                                     (SQR (OP "-" (VAR y1) (VAR y2)))
 
-        -- v1x, v1y, v2x, v2y
-dotprod :: Expr -> Expr -> Expr -> Expr -> Expr
-dotprod v1x v1y v2x v2y =
-    OP "+" (OP "*" v1x v2x) (OP "*" v1y v2y)
-
 addVarDecl :: Parser.VarDeclaration -> TransformState ()
 addVarDecl (Parser.VAR_DECL var) = do
     State.addPoint var
@@ -106,9 +101,7 @@ addFold3Decl var arg1 arg2 = do
     (x1, y1, x2, y2) <- State.addLine var
     (a1, b1, a2, b2) <- State.getLineVars arg1
     (c1, d1, c2, d2) <- State.getLineVars arg2
-    --let parallelConstr = getParallelConstr (a1, b2, a2, b2) (c1, d1, c2, d2)
-    --let nonParallelConstr = NEG parallelConstr
-    --let (intX, intY) = getIntersectPt (x1, y1) (a1, b1, a2, b2) (c1, d1, c2, d2)
+
     let (xNum, yNum, denom) = assignIntersectPtData (VAR a1, VAR b1, VAR a2, VAR b2)
                                                     (VAR c1, VAR d1, VAR c2, VAR d2)
     
@@ -123,11 +116,7 @@ addFold3Decl var arg1 arg2 = do
 
     dist1 <- getConstructSqrt (distance (a1, b1) (a2, b2))
     dist2 <- getConstructSqrt (distance (c1, d1) (c2, d2))
-    --(dist1, dist2) <- State.freshNamedVarPair "fold3_dist"
-    --addExpr $ OP "=" (SQR (VAR dist1)) (distance (a1, b1) (a2, b2))
-   -- addExpr $ OP "=" (SQR (VAR dist2)) (distance (c1, d1) (c2, d2))
-   -- addExpr $ OP "<" (CONST 0) (VAR dist1)
-   -- addExpr $ OP "<" (CONST 0) (VAR dist2)
+
     let intNorm1x = OP "/" (OP "-" (VAR a2) (VAR a1)) (VAR dist1)
     let intNorm1y = OP "/" (OP "-" (VAR b2) (VAR b1)) (VAR dist1)
     let intNorm2x = OP "/" (OP "-" (VAR c2) (VAR c1)) (VAR dist2)
@@ -710,7 +699,7 @@ errorTerm = OP "/" (CONST 0) (CONST 1)--4000000000485760000000000000000000000000
 
 getConstructSqrt :: Expr -> TransformState (Variable)
 getConstructSqrt e = do
-    (var, _) <- State.freshVarPair
+    var <- State.freshNamedVar "sqrt"
     addExpr $ OP "<=" (SQR (OP "-" e (SQR (VAR var)))) errorTerm
     addExpr $ OP ">=" (VAR var) (CONST 0)
     return var
@@ -720,9 +709,6 @@ getAvg a b = OP "/" (OP "+" a b) (CONST 2)
 
 midPoint :: Expr -> Expr -> TransformState (Expr)
 midPoint a b = do
-    (fresh, _) <- State.freshVarPair
-    --addExpr $ OP "=" (OP "*" (CONST 2) (VAR fresh)) (OP "+" a b)
-    --return (VAR fresh)
     return $ OP "/" (OP "+" a b) (CONST 2)
 
 addIntersectDecl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()

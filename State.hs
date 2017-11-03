@@ -12,6 +12,7 @@ module State (
     addLine,
     freshVarPair,
     freshNamedVarPair,
+    freshNamedVar,
     addClause,
     addConstraintClause,
     doNothing,
