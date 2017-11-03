@@ -1,6 +1,6 @@
 module State (
     TransformState,
-    Transform (constructionClauses, assertionClauses, freshVarCnt, varNameMap),
+    Transform (constructionClauses, assertionClauses, freshVarCnt, varNameList),
     Variable,
     Clause,
     Expr (OP, VAR, CONST, CONST', BOOL, NEG, ASSIGN, ASSIGNS, SQR, LIST),
@@ -44,7 +44,7 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
                      constructionClauses :: [Clause],
                      assertionClauses :: [Clause],
                      freshVarCnt :: Int,
-                     varNameMap :: Map.Map Int String,
+                     varNameList :: [String],
                      valueMap :: Map.Map String Expr
                      }
 
@@ -69,7 +69,7 @@ initialState = T { pointMap = Map.fromList cornerVars,
                                                    ("_bottom", CONST' (0,1))]],
                    assertionClauses = [],
                    freshVarCnt =  0,
-                   varNameMap = Map.empty,
+                   varNameList = ["_left", "_right", "_bottom", "_top"],
                    valueMap = Map.fromList [("_left", CONST' (0,1)),
                                             ("_right", CONST' (paperSize,1)),
                                             ("_top", CONST' (paperSize,1)),
@@ -232,14 +232,27 @@ freshVarPair :: TransformState (Variable, Variable)
 freshVarPair = freshNamedVarPair ""
 
 freshNamedVarPair :: String -> TransformState (Variable, Variable)
-freshNamedVarPair s = state $ \t
-    -> ((str ++ "_x" ++ show (freshVarCnt t), str ++ "_y" ++ show (freshVarCnt t)),
-        t { varNameMap = Map.insert (freshVarCnt t) str (varNameMap t), freshVarCnt = (freshVarCnt t) + 1}) where
-    str = disableNaming s
+--freshNamedVarPair s = state $ \t
+--    -> ((str ++ "_x" ++ show (freshVarCnt t), str ++ "_y" ++ show (freshVarCnt t)),
+--        t { varNameMap = Map.insert (freshVarCnt t) str (varNameMap t), freshVarCnt = (freshVarCnt t) + 1}) where
+--    str = disableNaming s
+freshNamedVarPair str = do
+    xv <- freshNamedVar $ str ++ "_x"
+    yv <- freshNamedVar $ str ++ "_y"
+    return (xv, yv)
+
+
+freshNamedVar :: String -> TransformState (Variable)
+freshNamedVar str = state $ \t
+    -> (makeVarName str (freshVarCnt t),
+        t { varNameList = (makeVarName str $ freshVarCnt t) : (varNameList t), freshVarCnt = (freshVarCnt t) + 1})
+
+makeVarName :: String -> Int -> String
+makeVarName str varCnt = str ++ "_" ++ show varCnt
 
 --disable variable naming
-disableNaming :: String -> String
-disableNaming str = str
+--disableNaming :: String -> String
+--disableNaming str = str
 
 getValueMap :: TransformState (Map.Map String Expr)
 getValueMap = state $ \t -> (valueMap t, t)

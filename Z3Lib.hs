@@ -7,8 +7,8 @@ import qualified Data.Map as Map
 makeOutputStr :: Bool -> State.Transform -> String
 makeOutputStr b t = 
     startupStr 
-    ++ makeVarDecls (State.varNameMap t) (State.freshVarCnt t)
-    ++ cornerVarDecls
+    ++ makeVarDecls (State.varNameList t)
+--    ++ cornerVarDecls
     ++ List.concatMap (makeClause False) (List.map Just (List.reverse (State.constructionClauses t)))
     ++ makeClause b (unifyClauses (State.assertionClauses t))
     ++ endStr
@@ -20,15 +20,11 @@ startupStr = "from z3 import *\n"
 endStr :: String
 endStr = "print s.check()\nprint s.model()"
 
-makeVarDecls :: (Map.Map Int String) -> Int -> String
-makeVarDecls varnames x = List.concatMap (makeVarDecl varnames) [0..(x-1)]
+makeVarDecls :: [String] -> String
+makeVarDecls varnames = List.concatMap makeVarDecl varnames
 
-makeVarDecl :: (Map.Map Int String) -> Int -> String
-makeVarDecl varnames x = varname ++ "_x" ++ show x ++ " = Real('" ++ varname ++ "_x" ++ show x ++ "')\n"
-                      ++ varname ++ "_y" ++ show x ++ " = Real('" ++ varname ++ "_y" ++ show x ++ "')\n" where
-    varname = case Map.lookup x varnames of
-        Nothing -> error $ "couldn't find var number " ++ show x
-        Just name -> name
+makeVarDecl :: String -> String
+makeVarDecl varname = varname ++ " = Real('" ++ varname ++ "')\n"
 
 cornerVarDecls :: String 
 cornerVarDecls = "_left = Real('_left')\n"
