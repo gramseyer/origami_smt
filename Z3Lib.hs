@@ -20,17 +20,17 @@ startupStr = "from z3 import *\n"
 endStr :: String
 endStr = "print s.check()\nprint s.model()"
 
-makeVarDecls :: [String] -> String
+makeVarDecls :: [Variable] -> String
 makeVarDecls varnames = List.concatMap makeVarDecl varnames
 
-makeVarDecl :: String -> String
-makeVarDecl varname = varname ++ " = Real('" ++ varname ++ "')\n"
+makeVarDecl :: Variable -> String
+makeVarDecl varname = show varname ++ " = Real('" ++ show varname ++ "')\n"
 
-cornerVarDecls :: String 
-cornerVarDecls = "_left = Real('_left')\n"
-              ++ "_right = Real('_right')\n"
-              ++ "_top = Real('_top')\n"
-              ++ "_bottom = Real('_bottom')\n"
+--cornerVarDecls :: String 
+--cornerVarDecls = "_left = Real('_left')\n"
+  --            ++ "_right = Real('_right')\n"
+    --          ++ "_top = Real('_top')\n"
+      --        ++ "_bottom = Real('_bottom')\n"
 
 makeClause :: Bool -> Maybe Clause -> String
 makeClause False (Just clause) = "s.add(" ++ translateExpr clause ++ ")\n"
@@ -45,7 +45,7 @@ unifyClauses [] = Nothing
 unifyClauses xs = Just $ List.foldr1 foldClauses xs
 
 translateExpr :: Expr -> String
-translateExpr (VAR v) = v
+translateExpr (VAR v) = show v
 translateExpr (OP "and" e1 e2) = "(And (" ++ translateExpr e1 ++ ", " ++ translateExpr e2 ++ "))"
 translateExpr (OP "or" e1 e2)  = "(Or (" ++ translateExpr e1 ++ ", " ++ translateExpr e2 ++ "))"
 translateExpr (OP "=" e1 e2)   = "(" ++ translateExpr e1 ++ " == " ++ translateExpr e2 ++ ")"
@@ -56,7 +56,7 @@ translateExpr (BOOL b) = show b
 translateExpr (ASSIGNS xs) = "(And (" ++ List.foldr1 (\s1 -> (\s2 -> s1 ++ ", " ++ s2)) (List.map translateAssign xs) ++ "))"
 
 translateAssign :: (Variable, Expr) -> String
-translateAssign (v, e) = "(" ++ v ++ " == " ++ translateExpr e ++ ")"
+translateAssign (v, e) = "(" ++ show v ++ " == " ++ translateExpr e ++ ")"
 
 
 

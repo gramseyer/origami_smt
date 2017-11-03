@@ -23,11 +23,11 @@ vf = "declare-fun"
 vf2 :: String
 vf2 = "()"
 
-makeVarDecls :: [String] -> String
+makeVarDecls :: [Variable] -> String
 makeVarDecls varnames = List.concatMap makeVarDecl varnames
 
-makeVarDecl :: String -> String
-makeVarDecl varname = "(" ++ vf ++ " " ++ varname ++ " " ++ vf2 ++ " Real)\n"
+makeVarDecl :: Variable -> String
+makeVarDecl varname = "(" ++ vf ++ " " ++ show varname ++ " " ++ vf2 ++ " Real)\n"
 
 --cornerVarDecls :: String
 --cornerVarDecls = "(" ++ vf ++ " _left " ++ vf2 ++ " Real)\n"
@@ -55,7 +55,7 @@ endStr = "(get-info :all-statistics)\n"
       ++ "(exit)\n"
 
 smtlibTranslateExpr :: Expr -> String
-smtlibTranslateExpr (VAR v)         = v
+smtlibTranslateExpr (VAR v)         = show v
 smtlibTranslateExpr (OP str e1 e2)  = "(" ++ str ++ " " ++ smtlibTranslateExpr e1 ++ " " ++ smtlibTranslateExpr e2 ++ ")"
 smtlibTranslateExpr (CONST' (x, y)) = "(/ " ++ showInt x ++ " " ++ showInt y ++ ")"
 smtlibTranslateExpr (NEG expr)      = "(not " ++ smtlibTranslateExpr expr ++ ")"
@@ -64,7 +64,7 @@ smtlibTranslateExpr (ASSIGNS xs)    = "(and " ++ List.concatMap translateAssign 
 translateExpr k = error $ "unnormalized input to smtlibTranslateExpr " ++ show k
 
 translateAssign :: (Variable, Expr) -> String
-translateAssign (v, e) = "(= " ++ v ++ " " ++ smtlibTranslateExpr e ++ ")"
+translateAssign (v, e) = "(= " ++ show v ++ " " ++ smtlibTranslateExpr e ++ ")"
 
 showBool :: Bool -> String
 showBool True = "true"

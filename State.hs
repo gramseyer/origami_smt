@@ -21,13 +21,14 @@ import Parser
 import qualified Data.Map as Map
 import Control.Monad.State
 import qualified Data.List as List
+import Data.SBV
 
 type TransformState a = State Transform a
 
 type Constant = (Integer, Integer)
 
 data Expr = OP String Expr Expr
-          | VAR String
+          | VAR Variable
           | CONST' Constant
           | BOOL Bool
           | NEG Expr
@@ -44,36 +45,61 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
                      constructionClauses :: [Clause],
                      assertionClauses :: [Clause],
                      freshVarCnt :: Int,
-                     varNameList :: [String],
-                     valueMap :: Map.Map String Expr
+                     varNameList :: [Variable],
+                     valueMap :: Map.Map Variable Expr
                      }
 
 type Clause = Expr
-type Variable = String
+type Variable = String --V (Symbolic SReal, String)
+{-
+instance Eq Variable where
+    (V (_, x)) == (V (_, y)) = x==y
+
+instance Show Variable where
+    show (V (_, x)) = x
+
+instance Ord Variable where
+    V (_, x) <= V (_, y) = x<=y
+    compare (V (_, x)) (V (_, y)) = compare x y
+-}
+mkVariable :: String -> Variable
+mkVariable = id --str = V (sReal str, str)
 
 paperSize :: Integer
 paperSize = 1
 
+left :: Variable
+left = mkVariable "_left"
+
+right :: Variable
+right = mkVariable "_right"
+
+top :: Variable
+top = mkVariable "_top"
+
+bottom :: Variable
+bottom = mkVariable "_bottom"
+
 cornerVars :: [(Parser.Identifier, (Variable, Variable))]
-cornerVars = [("LB", ("_left", "_bottom")),
-              ("RB", ("_right", "_bottom")),
-              ("RT", ("_right", "_top")),
-              ("LT", ("_left", "_top"))]
+cornerVars = [("LB", (left, bottom)),
+              ("RB", (right, bottom)),
+              ("RT", (right, top)),
+              ("LT", (left, top))]
 
 initialState :: Transform
 initialState = T { pointMap = Map.fromList cornerVars,
                    lineMap = Map.empty, 
-                   constructionClauses = [ASSIGNS [("_left", CONST' (0,1)),
-                                                   ("_right", CONST' (paperSize, 1)),
-                                                   ("_top", CONST' (paperSize, 1)),
-                                                   ("_bottom", CONST' (0,1))]],
+                   constructionClauses = [ASSIGNS [(left, CONST' (0,1)),
+                                                   (right, CONST' (paperSize, 1)),
+                                                   (top, CONST' (paperSize, 1)),
+                                                   (bottom, CONST' (0,1))]],
                    assertionClauses = [],
                    freshVarCnt =  0,
-                   varNameList = ["_left", "_right", "_bottom", "_top"],
-                   valueMap = Map.fromList [("_left", CONST' (0,1)),
-                                            ("_right", CONST' (paperSize,1)),
-                                            ("_top", CONST' (paperSize,1)),
-                                            ("_bottom", CONST' (0,1))] }
+                   varNameList = [left, right, bottom, top],
+                   valueMap = Map.fromList [(left, CONST' (0,1)),
+                                            (right, CONST' (paperSize,1)),
+                                            (top, CONST' (paperSize,1)),
+                                            (bottom, CONST' (0,1))] }
 
 normalizeExpr :: Expr -> Expr
 -- remove weird forms
@@ -105,26 +131,26 @@ resolveExpr e = do
         _ -> return ()
     return e'
 
-showInt :: Integer -> String
-showInt x = if x>= 0 then show x else "(- " ++ show (abs x) ++ ")"
+--showInt :: Integer -> String
+--showInt x = if x>= 0 then show x else "(- " ++ show (abs x) ++ ")"
 
-showBool :: Bool -> String
-showBool True = "true"
-showBool False = "false"
+--showBool :: Bool -> String
+--showBool True = "true"
+--showBool False = "false"
 
-translateAssign :: (Variable, Expr) -> String
-translateAssign (v, e) = "(= " ++ v ++ " " ++ translateExpr e ++ ")"
+--translateAssign :: (Variable, Expr) -> String
+--translateAssign (v, e) = "(= " ++ v ++ " " ++ translateExpr e ++ ")"
 
-translateExpr :: Expr -> String
-translateExpr (VAR v)         = v
-translateExpr (OP str e1 e2)  = "(" ++ str ++ " " ++ translateExpr e1 ++ " " ++ translateExpr e2 ++ ")"
-translateExpr (CONST' (x, y)) = "(/ " ++ showInt x ++ " " ++ showInt y ++ " )"
-translateExpr (NEG expr)      = "(not " ++ translateExpr expr ++ ")"
-translateExpr (BOOL b)        = showBool b
-translateExpr (ASSIGNS xs)    = "(and " ++ List.concatMap translateAssign xs ++ ")"
-translateExpr k = error $ "unnormalized input to translateExpr" ++ show k
+--translateExpr :: Expr -> String
+--translateExpr (VAR v)         = v
+--translateExpr (OP str e1 e2)  = "(" ++ str ++ " " ++ translateExpr e1 ++ " " ++ translateExpr e2 ++ ")"
+--translateExpr (CONST' (x, y)) = "(/ " ++ showInt x ++ " " ++ showInt y ++ " )"
+--translateExpr (NEG expr)      = "(not " ++ translateExpr expr ++ ")"
+--translateExpr (BOOL b)        = showBool b
+--translateExpr (ASSIGNS xs)    = "(and " ++ List.concatMap translateAssign xs ++ ")"
+--translateExpr k = error $ "unnormalized input to translateExpr" ++ show k
 
-reduceExpr :: Map.Map String Expr -> Expr -> Expr
+reduceExpr :: Map.Map Variable Expr -> Expr -> Expr
 reduceExpr map (OP str e1 e2) = combine str (reduceExpr map e1) (reduceExpr map e2)
 reduceExpr map (VAR str) = case Map.lookup str map of
     Just static -> static
@@ -135,7 +161,7 @@ reduceExpr map (NEG e) = negateExpr (reduceExpr map e)
 reduceExpr map (ASSIGNS xs) = ASSIGNS (List.map (mapAssigns map) xs)
 reduceExpr _ e = error $ show e
 
-mapAssigns :: Map.Map String Expr -> (String, Expr) -> (String, Expr)
+mapAssigns :: Map.Map Variable Expr -> (Variable, Expr) -> (Variable, Expr)
 mapAssigns m (v, e) = (v, reduceExpr m e)
 
 negateExpr :: Expr -> Expr
@@ -242,10 +268,20 @@ freshNamedVarPair str = do
     return (xv, yv)
 
 
-freshNamedVar :: String -> TransformState (Variable)
-freshNamedVar str = state $ \t
-    -> (makeVarName str (freshVarCnt t),
-        t { varNameList = (makeVarName str $ freshVarCnt t) : (varNameList t), freshVarCnt = (freshVarCnt t) + 1})
+freshNamedVar :: String -> TransformState(Variable)
+freshNamedVar str = do
+    varCnt <- getFreshVarCnt
+    let varName = makeVarName str varCnt
+    let var = mkVariable varName
+    addNamedVar var
+
+getFreshVarCnt :: TransformState (Int)
+getFreshVarCnt = state $ \t -> (freshVarCnt t, t)
+
+addNamedVar :: Variable -> TransformState (Variable)
+addNamedVar str = state $ \t
+    -> (str,
+        t { varNameList = str : (varNameList t), freshVarCnt = (freshVarCnt t) + 1})
 
 makeVarName :: String -> Int -> String
 makeVarName str varCnt = str ++ "_" ++ show varCnt
@@ -254,7 +290,7 @@ makeVarName str varCnt = str ++ "_" ++ show varCnt
 --disableNaming :: String -> String
 --disableNaming str = str
 
-getValueMap :: TransformState (Map.Map String Expr)
+getValueMap :: TransformState (Map.Map Variable Expr)
 getValueMap = state $ \t -> (valueMap t, t)
 
 bindVariable :: Variable -> Expr -> TransformState ()

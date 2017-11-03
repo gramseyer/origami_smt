@@ -6,6 +6,9 @@ import Z3Lib
 import System.Environment
 import System.IO
 import qualified Data.List as List
+import Prover
+
+import Data.SBV
 
 run :: (State.Transform -> String) -> String -> String
 run f = f.State.execTransform.Eval.computeTransform.Parser.parseProgram
@@ -52,5 +55,10 @@ validateOptions (name:opts) = if not $ List.null (opts List.\\ ["--negate", "--z
 outputFile :: (String, String, (State.Transform -> String)) -> IO ()
 outputFile (filename, str, f) = writeFile filename $ run f str
 
+runProver :: (String, String, (State.Transform -> String)) -> IO ()
+runProver (filename, str, f) = do
+   vars <- (Prover.runSolvers False) . State.execTransform . Eval.computeTransform .  Parser.parseProgram $ str
+   putStrLn $ show vars
+
 main :: IO ()
-main = getArgs >>= validateOptions >>= processArgs >>= loadFile >>= outputFile
+main = getArgs >>= validateOptions >>= processArgs >>= loadFile >>= runProver -- >>= outputFile
