@@ -4,6 +4,7 @@ import Control.Monad
 import qualified Data.Map as Map
 import Data.SBV
 import Data.SBV.Control
+import Data.Maybe
 import qualified Data.List as List
 import State
 import Control.Concurrent
@@ -13,26 +14,28 @@ runSolvers :: Bool -> State.Transform -> IO (Map.Map String CW)
 runSolvers b t = do
     solvers <- sbvAvailableSolvers
     blocker <- newEmptyMVar
-    mapM_ (forkIO.(parallelHelper blocker (runSolver b t))) [disableIncrementalConfig yices] -- $ List.map disableIncrementalConfig $ [z3]
+    mapM_ (forkIO.(parallelHelper blocker (runSolver b t))) $ [z3, disableIncrementalConfig yices]
     model <- takeMVar blocker
     putStrLn $ show model
     return model
 
 disableIncremental :: SMTSolver -> SMTSolver
-disableIncremental solver = solver { options = const ["--mcsat"]}
+disableIncremental solver = solver { options = const []}
 
 disableIncrementalConfig :: SMTConfig -> SMTConfig
 disableIncrementalConfig config = config { solver = disableIncremental (solver config) }
 
-parallelHelper :: MVar (Map.Map String CW) -> (SMTConfig -> IO (Map.Map String CW)) -> SMTConfig -> IO ()
+parallelHelper :: MVar (Map.Map String CW) -> (SMTConfig -> IO (Maybe (Map.Map String CW))) -> SMTConfig -> IO ()
 parallelHelper blocker f config = do
     result <- f config
-    putMVar blocker result
+    case result of 
+        Nothing -> putStrLn $ "no result from smt solver"
+        Just x  -> putMVar blocker x
 
-runSolver :: Bool -> State.Transform -> SMTConfig -> IO (Map.Map String CW)
+runSolver :: Bool -> State.Transform -> SMTConfig -> IO (Maybe (Map.Map String CW))
 runSolver b t config = runSMTWith config $ makeSymbolicCalculation (show . name . solver $ config) b t
 
-makeSymbolicCalculation :: String -> Bool -> State.Transform -> Symbolic (Map.Map String CW)
+makeSymbolicCalculation :: String -> Bool -> State.Transform -> Symbolic (Maybe (Map.Map String CW))
 makeSymbolicCalculation solverName b t = do
     varDeclMap <- makeVarDecls (State.varNameList t)
     assertConstraints varDeclMap (State.constructionClauses t)
@@ -43,26 +46,21 @@ makeSymbolicCalculation solverName b t = do
         cs <- getSMTResult
         case cs of
             Unknown _ _ -> do
-                 -- TODO wrap this all in a maybe and then have this return Nothing and then take mvars until we get a just
-                 io $ putStrLn $ solverName ++ "smt returned unknown"
-                 return Map.empty
+                 io $ putStrLn $ solverName ++ " returned unknown"
+                 return Nothing
             Unsatisfiable _ -> do
-                io $ putStrLn $ solverName ++ "returned unsat"
-                return Map.empty
+                io $ putStrLn $ solverName ++ " returned unsat"
+                return (Just (Map.empty))
             Satisfiable _ _ -> do
                 io $ putStrLn $ solverName ++ " returned sat"
-                --io $ putStrLn $ show model
-                return $ getModelDictionary cs
+                return $ Just $ getModelDictionary cs
             SatExtField _ _ -> do
                 io $ putStrLn $ solverName ++ " is wtf"
-                return Map.empty
+                return Nothing
             ProofError _ _ -> do
                 io $ putStrLn $ solverName ++ " had an error"
-                return Map.empty
+                return Nothing
     return result
-
---formatModel :: SMTModel -> [(Variable, AlgReal)]
---formatModel model = List.map (\(str, cw) -> (str, fromCW cw)) (modelAssocs model)
 
 makeVarDecls :: [Variable] -> Symbolic (Map.Map Variable SReal)
 makeVarDecls varnames = liftM Map.fromList $ List.foldr (liftM2 (:)) (return []) (List.map makeVarDecl varnames)

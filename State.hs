@@ -1,6 +1,6 @@
 module State (
     TransformState,
-    Transform (constructionClauses, assertionClauses, freshVarCnt, varNameList),
+    Transform (lineMap, constructionClauses, assertionClauses, freshVarCnt, varNameList),
     Variable,
     Clause,
     Expr (OP, VAR, CONST, CONST', BOOL, NEG, ASSIGN, ASSIGNS, SQR, LIST),

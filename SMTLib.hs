@@ -4,8 +4,8 @@ import State
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-makeOutputStr :: Bool -> State.Transform -> String
-makeOutputStr b t =
+makeOutputStr :: Bool -> State.Transform -> IO String
+makeOutputStr b t = return $
     startupStr
     ++ makeVarDecls (State.varNameList t)
   --  ++ cornerVarDecls
