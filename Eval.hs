@@ -41,14 +41,11 @@ addDecl :: Parser.Declaration -> TransformState ()
 addDecl (Parser.DEC_FOLD1 var arg1 arg2)      = addFold1Decl var arg1 arg2
 addDecl (Parser.DEC_FOLD2 var arg1 arg2)      = addFold2Decl var arg1 arg2
 addDecl (Parser.DEC_FOLD3 var arg1 arg2)      = addFold3Decl var arg1 arg2
-addDecl (Parser.DEC_NFOLD3 var arg1 arg2)     = error "foo" --addNFold3Decl var arg1 arg2
 addDecl (Parser.DEC_FOLD4 var arg1 arg2)      = addFold4Decl var arg1 arg2
-addDecl (Parser.DEC_FOLD5_SOL1 var pointMove pointCenter line)
+addDecl (Parser.DEC_FOLD5 1 var pointMove pointCenter line)
                                               = addFold5DeclSol1 var pointMove pointCenter line
-addDecl (Parser.DEC_FOLD5_SOL2 var pointMove pointCenter line)
+addDecl (Parser.DEC_FOLD5 2 var pointMove pointCenter line)
                                               = addFold5DeclSol2 var pointMove pointCenter line
-addDecl (Parser.DEC_NFOLD5 var pointMove pointCenter line)
-                                              = error "foo" --addNFold5Decl var pointMove pointCenter line
 addDecl (Parser.DEC_FOLD6 solnum var p1 l1 p2 l2)
                                               = addFold6Decl solnum var p1 l1 p2 l2
 addDecl (Parser.DEC_FOLD7 var point l1 l2)    = addFold7Decl var point l1 l2
@@ -107,12 +104,9 @@ addFold3Decl var arg1 arg2 = do
     
     (denomV, parCondV) <- State.freshNamedVarPair "denom"
     addExpr $ ASSIGN denomV denom
-    --addExpr $ ASSIGN yNumV yNum
-   -- let intX = OP "=" (VAR x1) (OP "/" xNum denom)
-   -- let intY = OP "=" (VAR y1) (OP "/" yNum denom)
+
     let parallelConstr = OP "=" (CONST 0) denom
     let nonParallelConstr = NEG parallelConstr
-
 
     dist1 <- getConstructSqrt (distance (a1, b1) (a2, b2))
     dist2 <- getConstructSqrt (distance (c1, d1) (c2, d2))
@@ -169,48 +163,6 @@ addFold3Decl var arg1 arg2 = do
     addExpr totalCond
     addExpr selectConstr
 
-{-addNFold3Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
-addNFold3Decl var arg1 arg2 = do
-    (x1, y1, x2, y2) <- State.addLine var
-    (a1, b1, a2, b2) <- State.getLineVars arg1
-    (c1, d1, c2, d2) <- State.getLineVars arg2
-
-    let parallelConstr = getParallelConstr (a1, b1, a2, b2) (c1, d1, c2, d2)
-    let nonParallelConstr = NEG parallelConstr
-    let (intX, intY) = getIntersectPt (x1, y1) (a1, b1, a2, b2) (c1, d1, c2, d2)
-    let intNorm1x = OP "/" (OP "-" (VAR a2) (VAR a1)) (distance (a1, b1) (a2, b2))
-    let intNorm1y = OP "/" (OP "-" (VAR b2) (VAR b1)) (distance (a1, b1) (a2, b2))
-    let intNorm2x = OP "/" (OP "-" (VAR c2) (VAR c1)) (distance (c1, d1) (c2, d2))
-    let intNorm2y = OP "/" (OP "-" (VAR d2) (VAR d1)) (distance (c1, d1) (c2, d2))
-    let mpdX = midPoint intNorm1x intNorm2x
-    let mpdY = midPoint intNorm1y intNorm2y
-    let mpdX' = midPoint (OP "*" (CONST (-1)) intNorm1x) intNorm1y
-    let mpdY' = midPoint (OP "*" (CONST (-1)) intNorm2x) intNorm2y
-    
-    let mpX = OP "+" mpdX (VAR x1)
-    let mpY = OP "+" mpdY (VAR y1)
-    let mpX' = OP "+" mpdX' (VAR x1)
-    let mpY' = OP "+" mpdY' (VAR y1)
-
-    let parX1 = midPoint (VAR a1) (VAR c1)
-    let parY1 = midPoint (VAR b1) (VAR d1)
-    let parX2 = midPoint (VAR a1) (VAR c2)
-    let parY2 = midPoint (VAR b1) (VAR d2)
-
-    let parCond = OP "and" parallelConstr
-                           (OP "and" (OP "and" (OP "=" (VAR x1) parX1)
-                                               (OP "=" (VAR y1) parY1))
-                                     (OP "and" (OP "=" (VAR x2) parX2)
-                                               (OP "=" (VAR y2) parY2)))
-    let nParCond = OP "and" nonParallelConstr
-                            (OP "and" (OP "and" intX intY)
-                                      (OP "or" (OP "and" (OP "=" (VAR x2) mpX)
-                                                         (OP "=" (VAR y2) mpY))
-                                               (OP "and" (OP "=" (VAR x2) mpX')
-                                                         (OP "=" (VAR y2) mpY'))))
-    let totalCond = OP "or" parCond nParCond
-    addExpr totalCond
--}
 addFold4Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold4Decl var arg1 arg2 = do
     (x1, y1, x2, y2) <- State.addLine var

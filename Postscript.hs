@@ -1,4 +1,4 @@
-module Postscript (makeLines) where
+module Postscript (makeDocument) where
 
 import Data.SBV
 import Data.SBV.Control
@@ -26,6 +26,12 @@ makeLinePs (x1, y1, x2, y2) = "newpath\n"
                            ++ show (-2000 * (x2-x1)) ++ " " ++ show (-2000 * (y2-y1)) ++ " rlineto\n"
                            ++ "2 setlinewidth\n"
                            ++ "stroke\n\n"
+
+makePage :: Map.Map String CW -> [(Variable, Variable, Variable, Variable)] -> String
+makePage map lines = (makeLines map lines) ++ "showpage\n\n"
+
+makeDocument :: Map.Map String CW -> [(Variable, Variable, Variable, Variable)] -> String
+makeDocument map lines = List.concatMap (makePage map) $ List.map (flip List.take $ lines) [0..(List.length lines)-1]
 
 formatMap :: Map.Map String CW -> Map.Map String Float
 formatMap map = Map.map getAlgRealValue map

@@ -42,7 +42,7 @@ genPostScript :: Bool -> State.Transform -> IO String
 genPostScript b t = do
     map <- Prover.runSolvers b t
     let lines = List.map snd $ Map.toList (State.lineMap t)
-    return $ Postscript.makeLines map lines
+    return $ Postscript.makeDocument map lines
 
 validateOptions :: [String] -> IO ([String])
 validateOptions (name:opts) = if not $ List.null (opts List.\\ ["--negate", "--z3", "--smt"])

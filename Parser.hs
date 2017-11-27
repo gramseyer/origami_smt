@@ -1,26 +1,8 @@
 module Parser(
     Program (PROGRAM),
     VarDeclaration (VAR_DECL),
-    Declaration (DEC_FOLD1,
-                 DEC_FOLD2,
-                 DEC_FOLD3,
-                 DEC_NFOLD3,
-                 DEC_FOLD4,
-                 DEC_FOLD5_SOL1,
-                 DEC_FOLD5_SOL2,
-                 DEC_NFOLD5,
-                 DEC_FOLD6,
-                 DEC_FOLD7,
-                 DEC_INTERSECT),
-    Constraint (CN_AND,
-                CN_OR,
-                CN_NEG,
-                CN_PARALLEL,
-                CN_PERPENDICULAR,
-                CN_COLINEAR,
-                CN_ANG_EQ,
-                CN_ANG_GT,
-                CN_ANG_LT),
+    Declaration (..),
+    Constraint (..),
     Identifier,
     parseProgram) where
 
@@ -39,11 +21,8 @@ newtype VarDeclaration = VAR_DECL Identifier
 data Declaration = DEC_FOLD1 Identifier Identifier Identifier
                  | DEC_FOLD2 Identifier Identifier Identifier
                  | DEC_FOLD3 Identifier Identifier Identifier
-                 | DEC_NFOLD3 Identifier Identifier Identifier
                  | DEC_FOLD4 Identifier Identifier Identifier
-                 | DEC_FOLD5_SOL1 Identifier Identifier Identifier Identifier
-                 | DEC_FOLD5_SOL2 Identifier Identifier Identifier Identifier
-                 | DEC_NFOLD5 Identifier Identifier Identifier Identifier
+                 | DEC_FOLD5 Int Identifier Identifier Identifier Identifier
                  | DEC_FOLD6 Int Identifier Identifier Identifier Identifier Identifier
                  | DEC_FOLD7 Identifier Identifier Identifier Identifier
                  | DEC_INTERSECT Identifier Identifier Identifier
@@ -92,11 +71,9 @@ declaration :: Parser Declaration
 declaration = try fold1dec
           <|> try fold2dec
           <|> try fold3dec
-          <|> try nfold3dec
           <|> try fold4dec
           <|> try fold5decSol1
           <|> try fold5decSol2
-          <|> try nfold5dec
           <|> try fold6dec
           <|> try fold7dec
           <|> try intersectdec
@@ -110,21 +87,15 @@ fold2dec = decmaker "fold2" DEC_FOLD2
 fold3dec :: Parser Declaration
 fold3dec = decmaker "fold3" DEC_FOLD3
 
-nfold3dec :: Parser Declaration
-nfold3dec = decmaker "nfold3" DEC_NFOLD3
-
 fold4dec :: Parser Declaration
 fold4dec = decmaker "fold4" DEC_FOLD4
 
 -- Move first arg point over fold crossing arg2 onto line arg3
 fold5decSol1 :: Parser Declaration
-fold5decSol1 = ternarydecmaker "fold5_sol1" DEC_FOLD5_SOL1
+fold5decSol1 = ternarydecmaker "fold5_1" $ DEC_FOLD5 1
 
 fold5decSol2 :: Parser Declaration
-fold5decSol2 = ternarydecmaker "fold5_sol2" DEC_FOLD5_SOL2
---like the above but nondeterministic choice of which fold to use
-nfold5dec :: Parser Declaration
-nfold5dec = ternarydecmaker "nfold5" DEC_NFOLD5
+fold5decSol2 = ternarydecmaker "fold5_2" $ DEC_FOLD5 2
 
 fold6dec :: Parser Declaration
 fold6dec = try fold6decsol1
