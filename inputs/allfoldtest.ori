@@ -10,10 +10,10 @@ pcenter = intersect Lf32 Ldiag
 ;Ltop = fold1 RT LT
 ptop = intersect Ltop Lf32
 Lx = fold1 ptop LB
-L51 = fold5_sol1 RB pcenter Lleft
-L52 = fold5_sol2 RB pcenter Lleft
-Lx51 = fold5_sol1 RB pcenter Lx
-Lx52 = fold5_sol2 RB pcenter Lx
+L51 = fold5_1 RB pcenter Lleft
+L52 = fold5_2 RB pcenter Lleft
+Lx51 = fold5_1 RB pcenter Lx
+Lx52 = fold5_2 RB pcenter Lx
 Lx234 = fold4 pcenter Lx51
-Lx123 = fold5_sol1 x pcenter Lx234
+Lx123 = fold5_1 x pcenter Lx234
 CONSTRUCT isColinear x Ltop

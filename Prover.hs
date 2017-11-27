@@ -14,13 +14,13 @@ runSolvers :: Bool -> State.Transform -> IO (Map.Map String CW)
 runSolvers b t = do
     solvers <- sbvAvailableSolvers
     blocker <- newEmptyMVar
-    mapM_ (forkIO.(parallelHelper blocker (runSolver b t))) $ [z3, disableIncrementalConfig yices]
+    mapM_ (forkIO.(parallelHelper blocker (runSolver b t))) $ [z3]--, disableIncrementalConfig yices]
     model <- takeMVar blocker
     putStrLn $ show model
     return model
 
 disableIncremental :: SMTSolver -> SMTSolver
-disableIncremental solver = solver { options = const []}
+disableIncremental solver = solver { options = const ["--timeout=5"]}
 
 disableIncrementalConfig :: SMTConfig -> SMTConfig
 disableIncrementalConfig config = config { solver = disableIncremental (solver config) }

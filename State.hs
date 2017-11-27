@@ -1,6 +1,6 @@
 module State (
     TransformState,
-    Transform (lineMap, constructionClauses, assertionClauses, freshVarCnt, varNameList),
+    Transform (lineMap, constructionClauses, assertionClauses, freshVarCnt, varNameList, lineList),
     Variable,
     Clause,
     Expr (OP, VAR, CONST, CONST', BOOL, NEG, ASSIGN, ASSIGNS, SQR, LIST),
@@ -47,7 +47,8 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
                      assertionClauses :: [Clause],
                      freshVarCnt :: Int,
                      varNameList :: [Variable],
-                     valueMap :: Map.Map Variable Expr
+                     valueMap :: Map.Map Variable Expr,
+                     lineList :: [String]
                      }
 
 type Clause = Expr
@@ -101,7 +102,9 @@ initialState = T { pointMap = Map.fromList cornerVars,
                    valueMap = Map.fromList [(left, CONST' (0,1)),
                                             (right, CONST' (paperSize,1)),
                                             (top, CONST' (paperSize,1)),
-                                            (bottom, CONST' (0,1))] }
+                                            (bottom, CONST' (0,1))],
+                   lineList = []
+                 }
 
 normalizeExpr :: Expr -> Expr
 -- remove weird forms
@@ -260,10 +263,6 @@ freshVarPair :: TransformState (Variable, Variable)
 freshVarPair = freshNamedVarPair ""
 
 freshNamedVarPair :: String -> TransformState (Variable, Variable)
---freshNamedVarPair s = state $ \t
---    -> ((str ++ "_x" ++ show (freshVarCnt t), str ++ "_y" ++ show (freshVarCnt t)),
---        t { varNameMap = Map.insert (freshVarCnt t) str (varNameMap t), freshVarCnt = (freshVarCnt t) + 1}) where
---    str = disableNaming s
 freshNamedVarPair str = do
     xv <- freshNamedVar $ str ++ "_x"
     yv <- freshNamedVar $ str ++ "_y"
@@ -311,6 +310,7 @@ addPoint iden = do
 addLine :: Parser.Identifier -> TransformState (Variable, Variable, Variable, Variable)
 addLine iden = do
     lineMap <- getLineMap
+    pushLineName iden
     case Map.lookup iden lineMap of
         Just v -> error $ "Redefining line " ++ iden
         Nothing -> do
@@ -319,11 +319,15 @@ addLine iden = do
             putLineMap (Map.insert iden (x1, y1, x2, y2) lineMap)
             return (x1, y1, x2, y2)
 
+pushLineName :: String -> TransformState ()
+pushLineName s = state $ \t -> ((), t { lineList = s : lineList t })
+
 addClause :: Clause -> TransformState ()
-addClause c = state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) }) where
+addClause c = state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) })
 
 addConstraintClause :: Clause -> TransformState ()
-addConstraintClause c = state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) }) where
+addConstraintClause c = state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) })
 
 doNothing :: TransformState ()
 doNothing = state $ \s -> ((), s)
+
