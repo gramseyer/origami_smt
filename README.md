@@ -6,12 +6,44 @@ One can assert that the statements specifying the construction hold, and then as
 
 This is well suited towards an SMT solver, as opposed to just a CAS, because this system supports having variables in the construction.  I.e. One could prove a construction trisects an angle, no matter what the original angle.
 
+## Installation
+
+Requires Haskell >= 8.0
+
+Cabal Dependencies:  sbv, parsec
+```
+cabal install sbv
+cabal install parsec
+```
+
+Install in your path:
+
+Z3 >= 4.5.1
+
+Yices2 >= 2.5.4
+
+Run:
+```
+git clone https://github.com/gramseyer/origami_smt.git
+cd origami_smt
+ghc Main.hs
+```
+
 ## Usage
 ```
 ghc Main.hs
 ./Main <input_file> <options>
 ```
 This will invoke both yices and z3 on the generated constraints and produce a postscript file visualizing the fold sequence.
+Note: At this time, the SBV library may contain small bugs in its interactions with the yices solver.  If you encounter an error of the form
+```
+ *** Data.SBV: Unexpected response from the solver.
+ ***    Context : getModel
+ ***    Sent    : (get-value (s0))
+ ***    Expected: a value binding for kind: SReal
+ ***    Received: ((s0 0.355333))
+```
+you can run yices directly on the constraints by dumping the constraints in SMT2 format.
 
 To just generate the smt constraints, run with --smt.
 This will generate smt constraint file <input_file>.smt
