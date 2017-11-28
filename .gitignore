@@ -3,4 +3,8 @@
 Main
 inputs/*.ps
 inputs/*.smt
+inputs/*.pdf
+inputs/*.py
+inputs/*.swp
+*.swp
 
