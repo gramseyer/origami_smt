@@ -337,6 +337,8 @@ conditionalAddExpr :: Bool -> State.Variable -> State.Variable  -> TransformStat
 conditionalAddExpr True v1 v2 = addExpr $ OP "<" (VAR v2) (VAR v1)
 conditionalAddExpr False _ _ = return ()
 
+{- Credit for the equations here goes to Robert Lang's ReferenceFinder -}
+
 fold6Find3Solutions :: Int
                     -> Parser.Identifier
                     -> Parser.Identifier
@@ -704,19 +706,34 @@ pointInBox (x, y) = OP "and" (OP "and" (OP ">=" (VAR x) (CONST 0))
                                        (OP "<=" (VAR y) (CONST State.paperSize)))
 
 addConstraint :: (Expr -> TransformState ()) -> Parser.Constraint -> TransformState ()
-addConstraint logExpr (Parser.CN_PARALLEL var1 var2) = do
+addConstraint logExpr constraint = getConstraint constraint>>= logExpr
+
+getConstraint :: Parser.Constraint -> TransformState Expr
+getConstraint (Parser.CN_PARALLEL var1 var2) = do
     (x1, y1, x2, y2) <- State.getLineVars var1
     (a1, b1, a2, b2) <- State.getLineVars var2
-    logExpr $ getParallelConstr(x1, y1, x2, y2) (a1, b1, a2, b2)
-addConstraint logExpr (Parser.CN_PERPENDICULAR var1 var2) = do
+    return $ getParallelConstr(x1, y1, x2, y2) (a1, b1, a2, b2)
+getConstraint (Parser.CN_PERPENDICULAR var1 var2) = do
     l1 <- State.getLineVars var1
     l2 <- State.getLineVars var2
-    logExpr $ getPerpConstr l1 l2
-addConstraint logExpr (Parser.CN_COLINEAR varp varl) = do
+    return $ getPerpConstr l1 l2
+getConstraint (Parser.CN_COLINEAR varp varl) = do
     p <- State.getPointVars varp
     l <- State.getLineVars varl
-    logExpr $ getColinearExpr p l
-addConstraint _ _ = error "TODO constraint unimplemented"
+    return $ getColinearExpr p l
+getConstraint (Parser.CN_AND c1 c2) = do
+    e1 <- getConstraint c1
+    e2 <- getConstraint c2
+    return $ OP "and" e1 e2
+getConstraint (Parser.CN_OR c1 c2) = do
+    e1 <- getConstraint c1
+    e2 <- getConstraint c2
+    return $ OP "or" e1 e2
+getConstraint (Parser.CN_NEG c) = do
+    e <- getConstraint c
+    return $ NEG e
+
+getConstraint _ = error "TODO constraint unimplemented"
 
 getParallelConstr :: (State.Variable, State.Variable, State.Variable, State.Variable)
                   -> (State.Variable, State.Variable, State.Variable, State.Variable)
