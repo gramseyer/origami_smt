@@ -286,8 +286,17 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
 
     addExpr $ ASSIGN crossProdV crossProd
 
-    let sol1Expr = ASSIGNS [(x2, sol1x'), (y2, sol1y')]
-    let sol2Expr = ASSIGNS [(x2, sol2x'), (y2, sol2y')]
+    let sol1cond = OP "and" (OP "=" (VAR a) sol1x) (OP "=" (VAR b) sol1y)
+
+    let sol1Expr = OP "or" (OP "and" sol1cond (ASSIGNS [(x2, sol1x), (y2, sol1y)]))
+                           (OP "and" (NEG sol1cond) (ASSIGNS [(x2, sol1x'), (y2, sol1y')]))
+
+    let sol2cond = OP "and" (OP "=" (VAR a) sol2x) (OP "=" (VAR b) sol2y)
+
+    let sol2Expr = OP "or" (OP "and" sol2cond (ASSIGNS [(x2, sol2x), (y2, sol2y)]))
+                           (OP "and" (NEG sol2cond) (ASSIGNS [(x2, sol2x'), (y2, sol2y')]))
+   -- let sol1Expr = ASSIGNS [(x2, sol1x'), (y2, sol1y')]
+   -- let sol2Expr = ASSIGNS [(x2, sol2x'), (y2, sol2y')]
 
     let firstStr = if flag then ">=" else "<="
     let secondStr = if flag then "<=" else ">="
