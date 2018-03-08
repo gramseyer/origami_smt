@@ -204,10 +204,10 @@ addFold5DeclGenerator :: Bool
                       -> Parser.Identifier
                       -> TransformState ()
 addFold5DeclGenerator flag var pointMove pointOnLine line = do
-    (x1, y1, x2, y2) <- State.addLine var
     (xc, yc) <- State.getPointVars pointOnLine
     (a, b) <- State.getPointVars pointMove
     (c1, d1, c2, d2) <- State.getLineVars line
+    (x1, y1, x2, y2) <- State.addLine var
     let r2 = distance (xc, yc) (a, b)
     --let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
    -- let quadB = OP "+" (OP "*" (CONST 2) (OP "*" (OP "-" (VAR c2) (VAR c1))
@@ -220,18 +220,31 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
      --                          (OP "*" (CONST 2) (OP "+" (OP "*" (VAR xc) (VAR c1))
        --                                                  (OP "*" (VAR yc) (VAR d1)))))
          --              r2
+    
+
+    (c1v, d1v) <- State.freshNamedVarPair "c1d1"
+    (c2v, d2v) <- State.freshNamedVarPair "c2d2"
+    (xcv, ycv) <- State.freshNamedVarPair "xcyc"
+    addExpr $ ASSIGN c1v $VAR c1
+    addExpr $ ASSIGN d1v $VAR d1
+    addExpr $ ASSIGN c2v $ VAR c2 
+    addExpr $ ASSIGN d2v $VAR d2
+    addExpr $ ASSIGN xcv $VAR  xc
+    addExpr $ ASSIGN ycv $VAR yc
+
+
     let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
-    let quadB = OP "*" (CONST 2) (OP "+" (OP "*" (OP "-" (VAR c2) (VAR c1)) (OP "-" (VAR c1) (VAR a)))
-                                         (OP "*" (OP "-" (VAR d2) (VAR d1)) (OP "-" (VAR d1) (VAR b))))
-    let quadC = OP "-" (OP "+" (SQR (OP "-" (VAR c1) (VAR a))) (SQR (OP "-" (VAR d1) (VAR b)))) r2
+    let quadB = OP "*" (CONST 2) (OP "+" (OP "*" (OP "-" (VAR c2) (VAR c1)) (OP "-" (VAR c1) (VAR xc)))
+                                         (OP "*" (OP "-" (VAR d2) (VAR d1)) (OP "-" (VAR d1) (VAR yc))))
+    let quadC = OP "-" (OP "+" (SQR (OP "-" (VAR c1) (VAR xc))) (SQR (OP "-" (VAR d1) (VAR yc)))) r2
     (_, crossProdV) <- State.freshNamedVarPair "fold5Diagnostics"
-    let descExpr = OP "-" (SQR quadB) (OP "*" (OP "*" (CONST 2) quadA) quadC)
+    let discExpr = OP "-" (SQR quadB) (OP "*" (OP "*" (CONST 4) quadA) quadC)
     --addExpr $ OP "=" (SQR (VAR desc)) descExpr
     --addExpr $ OP ">" (VAR desc) (CONST 0)
-    desc <- getConstructSqrt descExpr
-    let sol1 = OP "/" (OP "+" (OP "-" (CONST 0) quadB) (VAR desc))
+    disc <- getConstructSqrt discExpr
+    let sol1 = OP "/" (OP "+" (OP "-" (CONST 0) quadB) (VAR disc))
                       (OP "*" (CONST 2) quadA)
-    let sol2 = OP "/" (OP "-" (OP "-" (CONST 0) quadB) (VAR desc))
+    let sol2 = OP "/" (OP "-" (OP "-" (CONST 0) quadB) (VAR disc))
                       (OP "*" (CONST 2) quadA)
     (s1, s2) <- State.freshNamedVarPair "fold5Sols"
     addExpr $ ASSIGN s1 sol1
@@ -241,15 +254,33 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     let sol2x = (OP "+" (VAR c1) (OP "*" (VAR s2) (OP "-" (VAR c2) (VAR c1))))
     let sol2y = (OP "+" (VAR d1) (OP "*" (VAR s2) (OP "-" (VAR d2) (VAR d1))))
 
+    (discV, _) <- State.freshNamedVarPair "disc_diag"
+    (qa, qb) <- State.freshNamedVarPair "quadratic_AB"
+    (qc, _) <- State.freshNamedVarPair "quadratic_c"
+    
+    addExpr $ ASSIGN qa quadA
+    addExpr $ ASSIGN qb quadB
+    addExpr $ ASSIGN qc quadC
+
+    (sol1xV, sol1yV) <- State.freshNamedVarPair "sol1_diag"
+    (sol2xV, sol2yV) <- State.freshNamedVarPair "sol2_diag"
+ 
+    addExpr $ ASSIGN discV discExpr
+    addExpr $ ASSIGN sol1xV sol1x
+    addExpr $ ASSIGN sol1yV sol1y
+
+    addExpr $ ASSIGN sol2xV sol2x
+    addExpr $ ASSIGN sol2yV sol2y
+
     let wx = OP "-" sol1x (VAR a)
     let wy = OP "-" sol1y (VAR b)
     let vx = OP "-" sol2x (VAR a)
     let vy = OP "-" sol2y (VAR b)
 
-    let sol1x' = OP "+" sol1x (OP "*" (CONST (-1)) wy)
-    let sol1y' = OP "+" sol1y (wx)
-    let sol2x' = OP "+" sol2x (OP "*" (CONST (-1)) vy)
-    let sol2y' = OP "+" sol2y (vx)
+    let sol1x' = OP "+" (VAR xc) (OP "*" (CONST (-1)) wy)
+    let sol1y' = OP "+" (VAR yc) (wx)
+    let sol2x' = OP "+" (VAR xc) (OP "*" (CONST (-1)) vy)
+    let sol2y' = OP "+" (VAR yc) (vx)
 
     let crossProd = crossProdExpr (vx, vy) (wx, wy)
 

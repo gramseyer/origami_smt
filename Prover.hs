@@ -16,8 +16,12 @@ runSolvers b t = do
     blocker <- newEmptyMVar
     mapM_ (forkIO.(parallelHelper blocker (runSolver b t))) $ [z3]--, disableIncrementalConfig yices]
     model <- takeMVar blocker
-    putStrLn $ show model
+    putStrLn.prettyprint $ Map.toList model
     return model
+
+prettyprint :: [(String, CW)] -> String
+prettyprint (x:xs) = (show x) ++ "\n" ++ prettyprint xs
+prettyprint [] = ""
 
 disableIncremental :: SMTSolver -> SMTSolver
 disableIncremental solver = solver { options = const ["--timeout=5"]}

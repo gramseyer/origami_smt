@@ -48,6 +48,7 @@ validateOptions :: [String] -> IO ([String])
 validateOptions (name:opts) = if not $ List.null (opts List.\\ ["--negate", "--z3", "--smt"])
                                   then error "invalid option"
                                   else return (name:opts)
+validateOptions [] = error "Must input filename as first arg"
 
 outputFile :: (String, String, (State.Transform -> IO String)) -> IO ()
 outputFile (filename, str, f) = run f str >>= writeFile filename
