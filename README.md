@@ -86,7 +86,14 @@ O6 has potentially 3 solutions.  Each solution will be one of the tangent lines 
                | "OR" '(' <constraint> ')' '(' <constraint> ')'
                | "NEG" '(' <constraint> ')'
                | "parallel" <identifier> <identifier>
-               ; more primitives...
+               | ...more primitives...
+               | <distance> '<'|'>'|'=' <distance>
+               ;
+<distance> ::= 'd(' <identifier> <identifier> ')'
+             | <distance> [+-/*] <distance>
+             | integer
+             ;
+
 <var_decl> ::= "VAR" <identifier>
 
 <program> ::= <var_decl>* <assignment>* <construct>* <assert>*
