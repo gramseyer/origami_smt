@@ -3,6 +3,7 @@ module Parser(
     VarDeclaration (VAR_DECL),
     Declaration (..),
     Constraint (..),
+    Distance (..),
     Identifier,
     parseProgram) where
 
@@ -37,6 +38,14 @@ data Constraint = CN_AND Constraint Constraint
                 | CN_ANG_EQ Angle Angle
                 | CN_ANG_GT Angle Angle
                 | CN_ANG_LT Angle Angle
+                | CN_DIST_EQ Distance Distance
+                | CN_DIST_LT Distance Distance
+                | CN_DIST_GT Distance Distance
+    deriving Show
+
+data Distance = DIST Identifier Identifier
+              | DIST_BINOP Distance Char Distance
+              | DIST_CONST Integer
     deriving Show
 
 data Angle = ANGLE Identifier Identifier Identifier
@@ -189,7 +198,8 @@ constraintInt = try constraintAnd
             <|> try constraintParallel
             <|> try constraintPerpendicular
             <|> try constraintColinear
-            <|> constraintAngle
+            <|> try constraintAngle
+            <|> constraintDist
 
 constraintAnd :: Parser Constraint
 constraintAnd = constraintGen "AND" CN_AND
@@ -259,6 +269,11 @@ constraintAngle = try angleEq
               <|> try angleLt
               <|> try angleGt
 
+constraintDist :: Parser Constraint
+constraintDist = try distEq
+             <|> try distLt
+             <|> try distGt
+
 decmaker :: String -> (Identifier -> Identifier -> Identifier -> Declaration) -> Parser Declaration
 decmaker str cons = do
     varname <- identifier
@@ -273,6 +288,53 @@ decmaker str cons = do
     endCommand
     return $ cons varname arg1 arg2
 
+dist :: Parser Distance
+dist = try distBinop
+   <|> try distGen
+   <|> distConst
+
+distGen :: Parser Distance
+distGen = do
+    string "d("
+    whitespace
+    p1 <- identifier
+    whitespace
+    p2 <- identifier
+    whitespace
+    string ")"
+    whitespace
+    return $ DIST p1 p2
+
+distBinop :: Parser Distance
+distBinop = do
+    char '('
+    whitespace
+    d1 <- dist
+    whitespace
+    op <- binop
+    whitespace
+    d2 <- dist
+    whitespace
+    char ')'
+    whitespace
+    return $ DIST_BINOP d1 op d2
+
+distConst :: Parser Distance
+distConst = do
+    top <- many1 digit
+    --TODO support floats
+    whitespace
+    return $ DIST_CONST (read top)
+
+distEq :: Parser Constraint
+distEq = distDecGenerator "==" CN_DIST_EQ
+
+distLt :: Parser Constraint
+distLt = distDecGenerator "<" CN_DIST_LT
+
+distGt :: Parser Constraint
+distGt = distDecGenerator ">" CN_DIST_GT
+
 angleEq :: Parser Constraint
 angleEq = angleDecGenerator "==" CN_ANG_EQ
 
@@ -282,13 +344,20 @@ angleLt = angleDecGenerator "<" CN_ANG_LT
 angleGt :: Parser Constraint
 angleGt = angleDecGenerator ">" CN_ANG_GT
 
+distDecGenerator :: String -> (Distance -> Distance -> Constraint) -> Parser Constraint
+distDecGenerator str cons = do
+    d1 <- dist
+    string str
+    whitespace
+    d2 <- dist
+    return $ cons d1 d2
+
 angleDecGenerator :: String -> (Angle -> Angle -> Constraint) ->  Parser Constraint
 angleDecGenerator str cons = do
     ang1 <- angle
     string str
     whitespace
     ang2 <- angle
-    whitespace
     return $ cons ang1 ang2
 
 angle :: Parser Angle
@@ -336,6 +405,9 @@ whitespace :: Parser ()
 whitespace = do
     many $ satisfy isWhiteSpace
     return ()
+
+binop :: Parser Char
+binop =  try (char '+') <|> try (char '*') <|> try (char '-') <|> char '/'
 
 isWhiteSpace :: Char -> Bool
 isWhiteSpace ' ' = True

@@ -298,8 +298,8 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
    -- let sol1Expr = ASSIGNS [(x2, sol1x'), (y2, sol1y')]
    -- let sol2Expr = ASSIGNS [(x2, sol2x'), (y2, sol2y')]
 
-    let firstStr = if flag then ">=" else "<="
-    let secondStr = if flag then "<=" else ">="
+    let firstStr = if flag then ">=" else "<"
+    let secondStr = if flag then "<" else ">="
 
     let sol1Constrained = OP "and" (OP firstStr (VAR crossProdV) (CONST 0)) sol1Expr
     let sol2Constrained = OP "and" (OP secondStr (VAR crossProdV) (CONST 0)) sol2Expr
@@ -746,9 +746,12 @@ pointInBox (x, y) = OP "and" (OP "and" (OP ">=" (VAR x) (CONST 0))
                                        (OP "<=" (VAR y) (CONST State.paperSize)))
 
 addConstraint :: (Expr -> TransformState ()) -> Parser.Constraint -> TransformState ()
-addConstraint logExpr constraint = getConstraint constraint>>= logExpr
+addConstraint logExpr constraint = do
+    processDistances logExpr $ getDistVars constraint
+    e <- getConstraint constraint
+    logExpr e
 
-getConstraint :: Parser.Constraint -> TransformState Expr
+getConstraint :: Parser.Constraint -> TransformState (Expr)
 getConstraint (Parser.CN_PARALLEL var1 var2) = do
     (x1, y1, x2, y2) <- State.getLineVars var1
     (a1, b1, a2, b2) <- State.getLineVars var2
@@ -772,8 +775,54 @@ getConstraint (Parser.CN_OR c1 c2) = do
 getConstraint (Parser.CN_NEG c) = do
     e <- getConstraint c
     return $ NEG e
+getConstraint (Parser.CN_DIST_LT d1 d2) = do
+    let e1 = getDistExpr d1
+    let e2 = getDistExpr d2
+    return $ OP "<" e1 e2
+getConstraint (Parser.CN_DIST_GT d1 d2) = do
+    let e1 = getDistExpr d1
+    let e2 = getDistExpr d2
+    return $ OP ">" e1 e2
+getConstraint (Parser.CN_DIST_EQ d1 d2) = do
+    let e1 = getDistExpr d1
+    let e2 = getDistExpr d2
+    return $ OP "=" e1 e2
 
 getConstraint _ = error "TODO constraint unimplemented"
+
+processDistances :: (Expr -> TransformState()) -> [(Parser.Identifier, Parser.Identifier)] -> TransformState ()
+processDistances logExpr = List.foldr ((>>).(processDistance logExpr)) State.doNothing
+
+processDistance :: (Expr -> TransformState()) -> (Parser.Identifier, Parser.Identifier) -> TransformState ()
+processDistance logExpr (p1, p2) = do
+    b <- State.hasDistance (p1, p2) 
+    if b then
+        return ()
+    else do
+        var <- State.newDistance (p1, p2)
+        (p1x, p1y) <- State.getPointVars p1
+        (p2x, p2y) <- State.getPointVars p2
+        logExpr $ OP "=" (SQR (VAR var)) (OP "+" (SQR (OP "-" (VAR p1x) (VAR p2x))) (SQR (OP "-" (VAR p1y) (VAR p2y))))
+        logExpr $ OP ">=" (VAR var) (CONST 0)
+
+getDistVars :: Parser.Constraint -> [(Parser.Identifier, Parser.Identifier)]
+getDistVars (Parser.CN_DIST_LT d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
+getDistVars (Parser.CN_DIST_EQ d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
+getDistVars (Parser.CN_DIST_GT d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
+getDistVars _ = []
+
+getDistVars' :: Parser.Distance -> [(Parser.Identifier, Parser.Identifier)]
+getDistVars' (Parser.DIST p1 p2) = [(p1, p2)]
+getDistVars' (Parser.DIST_CONST _) = []
+getDistVars' (Parser.DIST_BINOP d1 _ d2) = (getDistVars' d1) ++ (getDistVars' d2)
+
+getDistExpr :: Parser.Distance -> (Expr)
+getDistExpr (Parser.DIST p1 p2)   = (VAR (State.getDistVarName p1 p2))
+getDistExpr (Parser.DIST_CONST x) = (CONST x)
+getDistExpr (Parser.DIST_BINOP d1 op d2) = (OP [op] e1 e2)
+    where
+        e1 = getDistExpr d1
+        e2 = getDistExpr d2
 
 getParallelConstr :: (State.Variable, State.Variable, State.Variable, State.Variable)
                   -> (State.Variable, State.Variable, State.Variable, State.Variable)

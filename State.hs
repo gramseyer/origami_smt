@@ -1,6 +1,6 @@
 module State (
     TransformState,
-    Transform (lineMap, constructionClauses, assertionClauses, freshVarCnt, varNameList, lineList),
+    Transform (lineMap, constructionClauses, assertionClauses, varNameList, lineList),
     Variable,
     Clause,
     Expr (OP, VAR, CONST, CONST', BOOL, NEG, ASSIGN, ASSIGNS, SQR, LIST),
@@ -13,6 +13,9 @@ module State (
     freshVarPair,
     freshNamedVarPair,
     freshNamedVar,
+    getDistVarName,
+    newDistance,
+    hasDistance,
     addClause,
     addConstraintClause,
     doNothing,
@@ -23,6 +26,7 @@ import qualified Data.Map as Map
 import Control.Monad.State
 import qualified Data.List as List
 import Data.SBV
+import qualified Data.Set as Set
 
 type TransformState a = State Transform a
 
@@ -48,9 +52,18 @@ data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable),
                      freshVarCnt :: Int,
                      varNameList :: [Variable],
                      valueMap :: Map.Map Variable Expr,
-                     lineList :: [String]
+                     lineList :: [String],
+                     distanceSet :: Set.Set (Parser.Identifier, Parser.Identifier)
                      }
+{-
+type DistKey = DK (Parser.Identifier, Parser.Identifier)
 
+instance Eq DistKey where
+    DK (p1, p2) == DK (p3, p4) = (p1 == p3 && p2 == p4) || (p1 == p4 && p2 == p3)
+
+instance Ord DistKey where
+    (DK (x1, x2)) `compare` (DK (y1, y2)) = if ( 
+-}
 type Clause = Expr
 type Variable = String --V (Symbolic SReal, String)
 
@@ -103,7 +116,8 @@ initialState = T { pointMap = Map.fromList cornerVars,
                                             (right, CONST' (paperSize,1)),
                                             (top, CONST' (paperSize,1)),
                                             (bottom, CONST' (0,1))],
-                   lineList = []
+                   lineList = [],
+                   distanceSet = Set.empty
                  }
 
 normalizeExpr :: Expr -> Expr
@@ -259,6 +273,33 @@ getLineVars iden = do
         Just v -> return v
         Nothing -> error $ "undefined line " ++ iden
 
+hasDistance :: (Parser.Identifier, Parser.Identifier) -> TransformState (Bool)
+hasDistance (p1, p2) = do
+    distSet <- getDistanceSet
+    if Set.member (p1, p2) distSet then
+        return True
+      else 
+        return False
+
+newDistance :: (Parser.Identifier, Parser.Identifier) -> TransformState (Variable)
+newDistance (p1, p2) = do
+   b <- hasDistance (p1, p2)
+   if b then
+       return (getDistVarName p1 p2)
+     else do
+       addDistVar (getDistVarName p1 p2)
+       distSet <- getDistanceSet
+       addDistanceToSet (p1, p2)
+       addDistanceToSet (p2, p1)
+       return $ getDistVarName p1 p2
+
+--Doesn't guarantee the variable exists
+getDistVarName :: Parser.Identifier -> Parser.Identifier -> String
+getDistVarName p1 p2 = if p1 < p2 then
+    "d_" ++ p1 ++ "_" ++ p2
+  else
+    "d_" ++ p2 ++ "_" ++ p1 
+
 freshVarPair :: TransformState (Variable, Variable)
 freshVarPair = freshNamedVarPair ""
 
@@ -267,7 +308,6 @@ freshNamedVarPair str = do
     xv <- freshNamedVar $ str ++ "_x"
     yv <- freshNamedVar $ str ++ "_y"
     return (xv, yv)
-
 
 freshNamedVar :: String -> TransformState(Variable)
 freshNamedVar str = do
@@ -284,8 +324,20 @@ addNamedVar str = state $ \t
     -> (str,
         t { varNameList = str : (varNameList t), freshVarCnt = (freshVarCnt t) + 1})
 
+addDistVar :: Variable -> TransformState (Variable)
+addDistVar str = state $ \t
+    -> (str,
+        t { varNameList = str : (varNameList t) })
+
 makeVarName :: String -> Int -> String
 makeVarName str varCnt = str ++ "_" ++ show varCnt
+
+getDistanceSet :: TransformState (Set.Set (Parser.Identifier, Parser.Identifier))
+getDistanceSet = state $ \t -> (distanceSet t, t)
+
+addDistanceToSet :: (Parser.Identifier, Parser.Identifier) -> TransformState ()
+addDistanceToSet (p1, p2) = state $ \t -> 
+    ((), t { distanceSet = Set.insert (p1, p2) (distanceSet t) } )
 
 --disable variable naming
 --disableNaming :: String -> String
