@@ -1,0 +1,7 @@
+; Prove the triangle inequality
+VAR x
+VAR y
+VAR z
+LTop = fold1 LT RT
+CONSTRUCT isColinear x LTop
+ASSERT OR ((d(x y) + d(y z)) > d(x z)) ((d(x y) + d(y z)) == d(x z))
