@@ -7,14 +7,18 @@ import Data.List as List
 import Debug.Trace
 
 computeTransform :: Parser.Program -> TransformState ()
-computeTransform (Parser.PROGRAM vardecls decls constructConstraints assertConstraints) = 
+computeTransform (Parser.PROGRAM vardecls vardefns decls constructConstraints assertConstraints) = 
     executeVarDecls vardecls 
+        >> executeVarDefns vardefns
         >> executeDecls decls
         >> executeConstructions constructConstraints
         >> executeConstraints assertConstraints
 
 executeVarDecls :: [Parser.VarDeclaration] -> TransformState ()
 executeVarDecls = List.foldr ((>>).addVarDecl) State.doNothing
+
+executeVarDefns :: [Parser.VarDefinition] -> TransformState ()
+executeVarDefns = List.foldr ((>>).addVarDefn) State.doNothing
 
 executeDecls :: [Parser.Declaration] -> TransformState ()
 executeDecls = List.foldr ((>>) . addDecl) State.doNothing
@@ -36,6 +40,14 @@ addVarDecl (Parser.VAR_DECL var) = do
     State.addPoint var
     p <- State.getPointVars var
     addExpr $ pointInBox p
+    return ()
+
+addVarDefn :: Parser.VarDefinition -> TransformState ()
+addVarDefn (Parser.VAR_DEFN var a b c d) = do
+    State.addPoint var
+    (x, y) <- State.getPointVars var
+    addExpr $ ASSIGN x (CONST' (a,b))
+    addExpr $ ASSIGN y (CONST' (c,d))
     return ()
 
 addDecl :: Parser.Declaration -> TransformState ()

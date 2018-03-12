@@ -1,6 +1,7 @@
 module Parser(
     Program (PROGRAM),
     VarDeclaration (VAR_DECL),
+    VarDefinition (VAR_DEFN),
     Declaration (..),
     Constraint (..),
     Distance (..),
@@ -12,10 +13,14 @@ import System.Environment
 import Data.Map as Map
 import Data.List as List
 
-data Program = PROGRAM [VarDeclaration] [Declaration] [Constraint] [Constraint]
+data Program = PROGRAM [VarDeclaration] [VarDefinition] [Declaration] [Constraint] [Constraint]
     deriving Show
 
 newtype VarDeclaration = VAR_DECL Identifier
+    deriving Show
+
+-- Point X = (a/b, c/d)
+data VarDefinition = VAR_DEFN Identifier Integer Integer Integer Integer
     deriving Show
 
 -- first arg is the name of the variable
@@ -62,11 +67,12 @@ program :: Parser Program
 program = do
     many ignore
     vardeclarations <- many vardeclaration
+    vardefinitions <- many vardefinition
     declarations <- many declaration
     constructions <- many construct
     assertions <- many assert
     eof
-    return $ PROGRAM vardeclarations declarations constructions assertions
+    return $ PROGRAM vardeclarations vardefinitions declarations constructions assertions
 
 vardeclaration :: Parser VarDeclaration
 vardeclaration = do
@@ -75,6 +81,24 @@ vardeclaration = do
     name <- identifier
     endCommand
     return $ VAR_DECL name
+
+vardefinition :: Parser VarDefinition
+vardefinition = do
+    string "DEFINE"
+    whitespace
+    name <- identifier
+    whitespace
+    string "="
+    whitespace 
+    a <- many1 digit
+    whitespace
+    b <- many1 digit
+    whitespace
+    c <- many1 digit
+    whitespace
+    d <- many1 digit
+    endCommand
+    return $ VAR_DEFN name (read a) (read b) (read c) (read d)
 
 declaration :: Parser Declaration
 declaration = try fold1dec
