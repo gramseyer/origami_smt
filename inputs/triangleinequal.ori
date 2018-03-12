@@ -1,7 +1,8 @@
 ; Prove the triangle inequality
+; WLOG x lies on the top edge of the paper.
 VAR x
 VAR y
 VAR z
-LTop = fold1 LT RT
-CONSTRUCT isColinear x LTop
+Ltop = fold1 LT RT
+CONSTRUCT isColinear x Ltop
 ASSERT OR ((d(x y) + d(y z)) > d(x z)) ((d(x y) + d(y z)) == d(x z))
