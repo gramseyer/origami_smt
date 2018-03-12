@@ -1,0 +1,5 @@
+; Prove the triangle inequality
+VAR x
+VAR y
+VAR z
+ASSERT OR ((d(x y) + d(y z)) > d(x z)) ((d(x y) + d(y z)) == d(x z))
