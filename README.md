@@ -75,7 +75,7 @@ O6 has potentially 3 solutions.  Each solution will be one of the tangent lines 
               | "fold6_1" <identifier> <identifier> <identifier> <identifier> -- point, line, point, line, where point 1 moves onto line 1 and point 2 moves onto line 2
               | "fold6_2" ...
               | "fold6_3" ...
-              | "fold7" <identifier> <identifier> <identifier> -- point, line, line - point 1 moves onto line 1
+              | "fold7" <identifier> <identifier> <identifier> -- point, line, line - point 1 moves onto line 1, forming line perpendicular to line 2
 <assignment> ::= <identifier> "=" <fold_decl>
 
 <assert> ::= "ASSERT" <constraint>
