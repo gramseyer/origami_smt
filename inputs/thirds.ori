@@ -1,0 +1,15 @@
+;fold a paper into thirds
+Lright = fold1 RT RB
+Lmidvert = fold2 RT LT
+Lcross = fold5_2 LT RT Lmidvert
+Lleft = fold1 LT LB
+Ltop = fold1 LT RT
+pltemp = intersect Lcross Lleft
+Lperp = fold2 pltemp RT
+pthird1 = intersect Ltop Lperp
+Lotherthird = fold2 pthird1 RT
+pthird2 = intersect Ltop Lotherthird
+ASSERT d(pthird1 LT) == d(pthird1 pthird2)
+ASSERT d(pthird1 pthird2) == d(pthird2 RT)
+
+
