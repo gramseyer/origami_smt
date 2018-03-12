@@ -1,0 +1,17 @@
+;fold a line segment into thirds
+VAR x
+Ltop = fold1 LT RT
+
+Lmidvert = fold2 LT x
+Lcross = fold5_2 LT x Lmidvert
+Lleft = fold1 LT LB
+pltemp = intersect Lcross Lleft
+Lperp = fold2 pltemp x
+pthird1 = intersect Ltop Lperp
+Lotherthird = fold2 pthird1 x
+pthird2 = intersect Ltop Lotherthird
+CONSTRUCT isColinear x Ltop
+ASSERT d(pthird1 LT) == d(pthird1 pthird2)
+ASSERT d(pthird1 pthird2) == d(pthird2 x)
+
+
