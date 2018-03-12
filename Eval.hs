@@ -66,9 +66,9 @@ addDecl (Parser.DEC_INTERSECT var arg1 arg2)  = addIntersectDecl var arg1 arg2
 
 addFold1Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold1Decl var arg1 arg2 = do
-    (x1, y1, x2, y2) <- State.addLine var
     (a1, b1) <- State.getPointVars arg1
     (a2, b2) <- State.getPointVars arg2
+    (x1, y1, x2, y2) <- State.addLine var
     addExpr $ ASSIGN x1 (VAR a1)
     addExpr $ ASSIGN y1 (VAR b1)
     addExpr $ ASSIGN x2 (VAR a2)
@@ -79,9 +79,9 @@ addFold1Decl var arg1 arg2 = do
 
 addFold2Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold2Decl var arg1 arg2 = do
-    (x1, y1, x2, y2) <- State.addLine var
     (a1, b1) <- State.getPointVars arg1
     (a2, b2) <- State.getPointVars arg2
+    (x1, y1, x2, y2) <- State.addLine var
     let p1x = getAvg (VAR a1) (VAR a2)
     let p1y = getAvg (VAR b1) (VAR b2)
     let dx = OP "-" (VAR a2) (VAR a1)
@@ -108,10 +108,9 @@ assignIntersectPtData (x1, y1, x2, y2) (x3, y3, x4, y4) = (xNum, yNum, denom) wh
 
 addFold3Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold3Decl var arg1 arg2 = do
-    (x1, y1, x2, y2) <- State.addLine var
     (a1, b1, a2, b2) <- State.getLineVars arg1
     (c1, d1, c2, d2) <- State.getLineVars arg2
-
+    (x1, y1, x2, y2) <- State.addLine var
     let (xNum, yNum, denom) = assignIntersectPtData (VAR a1, VAR b1, VAR a2, VAR b2)
                                                     (VAR c1, VAR d1, VAR c2, VAR d2)
     
@@ -178,9 +177,9 @@ addFold3Decl var arg1 arg2 = do
 
 addFold4Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold4Decl var arg1 arg2 = do
-    (x1, y1, x2, y2) <- State.addLine var
     (a, b) <- State.getPointVars arg1
     (c1, d1, c2, d2) <- State.getLineVars arg2
+    (x1, y1, x2, y2) <- State.addLine var
     let preRotateX = OP "-" (VAR c2) (VAR c1)
     let preRotateY = OP "-" (VAR d2) (VAR d1)
     let postRotateX = preRotateY
@@ -190,7 +189,11 @@ addFold4Decl var arg1 arg2 = do
   --  let eqAssert' = OP "and" (OP "=" (VAR x1) (VAR a))
  --                            (OP "=" (VAR y1) (VAR b))
    -- addExpr eqAssert
-    --addExpr eqAssert'
+    --addExpr eqAssert
+
+   -- (px, py) <- State.freshNamedVarPair "postRotateXY"
+   -- addExpr $ ASSIGN px postRotateX
+    --addExpr $ ASSIGN py postRotateY
     addExpr $ ASSIGN x1 (VAR a)
     addExpr $ ASSIGN y1 (VAR b)
     addExpr $ ASSIGN x2 (OP "+" postRotateX (VAR a))
@@ -677,10 +680,10 @@ addFold7Decl :: Parser.Identifier
              -> Parser.Identifier
              -> TransformState ()
 addFold7Decl var p l1 l2 = do
-    (x1, y1, x2, y2) <- State.addLine var
     (x,y) <- State.getPointVars p
     (a1, b1, a2, b2) <- State.getLineVars l1
     (c1, d1, c2, d2) <- State.getLineVars l2
+    (x1, y1, x2, y2) <- State.addLine var
     (tempx, tempy) <- State.freshVarPair
     (vx, vy) <- State.freshVarPair
     addExpr $ ASSIGN vx (OP "-" (VAR a2) (VAR a1))
@@ -720,9 +723,9 @@ midPoint a b = do
 
 addIntersectDecl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addIntersectDecl var arg1 arg2 = do
-    (newx, newy) <- State.addPoint var
     (x1, y1, x2, y2) <- State.getLineVars arg1
     (x3, y3, x4, y4) <- State.getLineVars arg2
+    (newx, newy) <- State.addPoint var
     let (xNum, yNum, denom) = assignIntersectPtData (VAR x1, VAR y1, VAR x2, VAR y2) (VAR x3, VAR y3, VAR x4, VAR y4)
     addExpr $ ASSIGN newx (OP "/" xNum denom)
     addExpr $ ASSIGN newy (OP "/" yNum denom)
