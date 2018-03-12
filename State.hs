@@ -27,6 +27,7 @@ import Control.Monad.State
 import qualified Data.List as List
 import Data.SBV
 import qualified Data.Set as Set
+import Debug.Trace
 
 type TransformState a = State Transform a
 
@@ -45,25 +46,28 @@ data Expr = OP String Expr Expr
           | ASSIGN Variable Expr
     deriving Show
 
-data Transform = T { pointMap :: Map.Map Parser.Identifier (Variable, Variable), --(x,y)
-                     lineMap :: Map.Map Parser.Identifier (Variable, Variable, Variable, Variable), --(x1, y1, x2, y2)
-                     constructionClauses :: [Clause],
-                     assertionClauses :: [Clause],
-                     freshVarCnt :: Int,
-                     varNameList :: [Variable],
-                     valueMap :: Map.Map Variable Expr,
-                     lineList :: [String],
-                     distanceSet :: Set.Set (Parser.Identifier, Parser.Identifier)
-                     }
-{-
-type DistKey = DK (Parser.Identifier, Parser.Identifier)
+data Transform = T {
+    -- map from textual point names to SMT variable names.  Output is (x_coordinate, y_coordinate)
+    pointMap            :: Map.Map Parser.Identifier (Variable, Variable),
+    -- map from textual line name to SMT variable names.  Ouptut is (x_1, y_1, x_2, y_2)
+    lineMap             :: Map.Map Parser.Identifier (Variable, Variable, Variable, Variable),
+    -- list of clauses involved in an origami construction.
+    constructionClauses :: [Clause],
+    -- list of clauses to be asserted.  Negated, depending on options chosen.
+    assertionClauses    :: [Clause],
+    -- increments on each new variable declaration.
+    freshVarCnt         :: Int,
+    -- list of declared SMT variables
+    varNameList         :: [Variable],
+    -- map from variables to assigned expressions.  Used in constraint optimization. 
+    valueMap            :: Map.Map Variable Expr,
+    -- List of line names.  Used in visualization system.
+    lineList            :: [String],
+    -- Set of point-point distance declarations.  Used in computing distance constraints.
+    distanceSet         :: Set.Set (Parser.Identifier, Parser.Identifier)
+    }
+    deriving Show
 
-instance Eq DistKey where
-    DK (p1, p2) == DK (p3, p4) = (p1 == p3 && p2 == p4) || (p1 == p4 && p2 == p3)
-
-instance Ord DistKey where
-    (DK (x1, x2)) `compare` (DK (y1, y2)) = if ( 
--}
 type Clause = Expr
 type Variable = String --V (Symbolic SReal, String)
 
@@ -81,6 +85,7 @@ instance Ord Variable where
 mkVariable :: String -> Variable
 mkVariable = id --str = V (sReal str, str)
 
+-- The dimension of the paper.
 paperSize :: Integer
 paperSize = 1
 
@@ -120,6 +125,8 @@ initialState = T { pointMap = Map.fromList cornerVars,
                    distanceSet = Set.empty
                  }
 
+
+--Transform logged expressions into normalized forms.
 normalizeExpr :: Expr -> Expr
 -- remove weird forms
 normalizeExpr (SQR x) = OP "*" (normalizeExpr x) (normalizeExpr x)
@@ -133,7 +140,7 @@ normalizeExpr (ASSIGN s e) = ASSIGNS [(s, normalizeExpr e)]
 normalizeExpr (ASSIGNS xs) = ASSIGNS $  List.map (\(s, e)->(s, normalizeExpr e)) xs
 normalizeExpr e = e
 
-
+--Maps 
 processAssign :: (Variable, Expr) -> TransformState ()
 processAssign (v, CONST' x) = bindVariable v (CONST' x)
 processAssign (v, BOOL b) = bindVariable v (BOOL b)
@@ -141,6 +148,10 @@ processAssign (v, VAR newVar) = bindVariable v (VAR newVar)
 processAssign _ = doNothing
 
 -- Does not add to clause list.  Must be done elsewhere.
+-- In our constraint generation, we have labelled substitutable variable
+-- assignments with "ASSIGN x c" instead of "OP = x c", guaranteeing that
+-- each variable is only "assigned" once and it's first reference is an
+-- assignment, if it is ever assigned.
 resolveExpr :: Expr -> TransformState (Expr)
 resolveExpr e = do
     vMap <- getValueMap

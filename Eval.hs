@@ -4,6 +4,7 @@ import Parser
 import State
 import qualified Data.Map as Map
 import Data.List as List
+import Debug.Trace
 
 computeTransform :: Parser.Program -> TransformState ()
 computeTransform (Parser.PROGRAM vardecls decls constructConstraints assertConstraints) = 
@@ -747,7 +748,8 @@ pointInBox (x, y) = OP "and" (OP "and" (OP ">=" (VAR x) (CONST 0))
 
 addConstraint :: (Expr -> TransformState ()) -> Parser.Constraint -> TransformState ()
 addConstraint logExpr constraint = do
-    processDistances logExpr $ getDistVars constraint
+    let distVars = getDistVars constraint
+    processDistances logExpr distVars
     e <- getConstraint constraint
     logExpr e
 
@@ -795,20 +797,23 @@ processDistances logExpr = List.foldr ((>>).(processDistance logExpr)) State.doN
 
 processDistance :: (Expr -> TransformState()) -> (Parser.Identifier, Parser.Identifier) -> TransformState ()
 processDistance logExpr (p1, p2) = do
-    b <- State.hasDistance (p1, p2) 
+    b <- State.hasDistance (p1, p2)
     if b then
         return ()
     else do
         var <- State.newDistance (p1, p2)
         (p1x, p1y) <- State.getPointVars p1
         (p2x, p2y) <- State.getPointVars p2
-        logExpr $ OP "=" (SQR (VAR var)) (OP "+" (SQR (OP "-" (VAR p1x) (VAR p2x))) (SQR (OP "-" (VAR p1y) (VAR p2y))))
-        logExpr $ OP ">=" (VAR var) (CONST 0)
+        addExpr $ OP "=" (SQR (VAR var)) (OP "+" (SQR (OP "-" (VAR p1x) (VAR p2x))) (SQR (OP "-" (VAR p1y) (VAR p2y))))
+        addExpr $ OP ">=" (VAR var) (CONST 0)
 
 getDistVars :: Parser.Constraint -> [(Parser.Identifier, Parser.Identifier)]
 getDistVars (Parser.CN_DIST_LT d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
 getDistVars (Parser.CN_DIST_EQ d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
 getDistVars (Parser.CN_DIST_GT d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
+getDistVars (Parser.CN_AND c1 c2) = (getDistVars c1) ++ (getDistVars c2)
+getDistVars (Parser.CN_OR c1 c2) = (getDistVars c1) ++ (getDistVars c2)
+getDistVars (Parser.CN_NEG c) = getDistVars c
 getDistVars _ = []
 
 getDistVars' :: Parser.Distance -> [(Parser.Identifier, Parser.Identifier)]

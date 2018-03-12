@@ -207,7 +207,9 @@ constraintAnd = constraintGen "AND" CN_AND
 constraintOr :: Parser Constraint
 constraintOr = constraintGen "OR" CN_OR
 
-constraintGen :: String -> (Constraint -> Constraint -> Constraint) ->  Parser Constraint
+constraintGen :: String
+             -> (Constraint -> Constraint -> Constraint)
+              -> Parser Constraint
 constraintGen str constructor = do
     string str
     whitespace
@@ -274,7 +276,12 @@ constraintDist = try distEq
              <|> try distLt
              <|> try distGt
 
-decmaker :: String -> (Identifier -> Identifier -> Identifier -> Declaration) -> Parser Declaration
+decmaker :: String
+         -> (Identifier
+          -> Identifier
+          -> Identifier
+          -> Declaration)
+         -> Parser Declaration
 decmaker str cons = do
     varname <- identifier
     whitespace

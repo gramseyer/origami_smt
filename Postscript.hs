@@ -27,7 +27,7 @@ makeLinePs (x1, y1, x2, y2) = "newpath\n"
                            ++ "stroke\n\n"
 
 makePage :: Map.Map String CW -> Map.Map String (Variable, Variable, Variable, Variable) -> [String] -> String
-makePage map lineMap lineNames = (makeLines map (List.map ((Map.!) lineMap) lineNames )) ++ makeText (List.last lineNames) ++  "showpage\n\n"
+makePage map lineMap lineNames = ((makeLines map (List.map ((Map.!) lineMap) lineNames )) ++ makeText (List.last lineNames) ++  "showpage\n\n" )
 
 makeText :: String -> String
 makeText str = "/Times-Roman findfont\n24 scalefont\nsetfont\nnewpath\n100 25 moveto\n(" ++ str ++ ") show\n"

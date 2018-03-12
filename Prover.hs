@@ -9,6 +9,7 @@ import qualified Data.List as List
 import State
 import Control.Concurrent
 import Data.SBV.Internals
+import Debug.Trace
 
 runSolvers :: Bool -> State.Transform -> IO (Map.Map String CW)
 runSolvers b t = do
@@ -85,7 +86,7 @@ makeConstVar :: (Integer, Integer) -> String
 makeConstVar (x, y) = show x ++ "_div_" ++ show y
 
 makeConstraintReal :: Map.Map Variable SReal -> Expr -> SReal
-makeConstraintReal map (VAR v) = map Map.! v
+makeConstraintReal map (VAR v) = map Map.! (v)
 makeConstraintReal map (OP "+" e1 e2) = (makeConstraintReal map e1) + (makeConstraintReal map e2)
 makeConstraintReal map (OP "-" e1 e2) = (makeConstraintReal map e1) - (makeConstraintReal map e2)
 makeConstraintReal map (OP "*" e1 e2) = (makeConstraintReal map e1) * (makeConstraintReal map e2)
@@ -107,5 +108,5 @@ makeConstraintBool _ (BOOL b) = literal b
 makeConstraintBool _ e = error $ "invalid bool-valued expression" ++ show e
 
 makeAssign :: Map.Map Variable SReal -> (Variable, Expr) -> SBool
-makeAssign map (v, e) = (map Map.! v) .== (makeConstraintReal map e)
+makeAssign map (v, e) = (map Map.! (v)) .== (makeConstraintReal map e)
 

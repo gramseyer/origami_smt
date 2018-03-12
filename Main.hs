@@ -41,8 +41,12 @@ processArgs _ = do
 genPostScript :: Bool -> State.Transform -> IO String
 genPostScript b t = do
     map <- Prover.runSolvers b t
-    let lines = List.map snd $ Map.toList (State.lineMap t)
-    return $ Postscript.makeDocument map (List.reverse $ State.lineList t) (State.lineMap t)
+    if Map.null map
+      then
+        return "No postscript generated for unsat run or no fold run"
+      else do
+        let lines = List.map snd $ Map.toList (State.lineMap t)
+        return $ Postscript.makeDocument map (List.reverse $ State.lineList t) (State.lineMap t)
 
 validateOptions :: [String] -> IO ([String])
 validateOptions (name:opts) = if not $ List.null (opts List.\\ ["--negate", "--z3", "--smt"])
