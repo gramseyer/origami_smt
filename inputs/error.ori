@@ -1,0 +1,7 @@
+VAR x
+L1 = fold1 x RB
+L2 = fold4 RT L1
+Lbot = fold1 LB RB
+diff = intersect L2 Lbot
+
+ASSERT OR (d(diff LB) < d(x LT)) (d(diff LB) == d(x LT))
