@@ -13,9 +13,12 @@ import System.Environment
 import Data.Map as Map
 import Data.List as List
 
+-- The  first set of constraints are involved in the construction
+-- The second set consist of the assertions about the construction.
 data Program = PROGRAM [VarDeclaration] [VarDefinition] [Declaration] [Constraint] [Constraint]
     deriving Show
 
+-- Declare a free variable
 newtype VarDeclaration = VAR_DECL Identifier
     deriving Show
 
@@ -34,6 +37,7 @@ data Declaration = DEC_FOLD1 Identifier Identifier Identifier
                  | DEC_INTERSECT Identifier Identifier Identifier
     deriving Show
 
+--Define a constraint
 data Constraint = CN_AND Constraint Constraint
                 | CN_OR Constraint Constraint
                 | CN_NEG Constraint

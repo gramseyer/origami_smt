@@ -69,21 +69,10 @@ data Transform = T {
     deriving Show
 
 type Clause = Expr
-type Variable = String --V (Symbolic SReal, String)
+type Variable = String 
 
-{-
-instance Eq Variable where
-    (V (_, x)) == (V (_, y)) = x==y
-
-instance Show Variable where
-    show (V (_, x)) = x
-
-instance Ord Variable where
-    V (_, x) <= V (_, y) = x<=y
-    compare (V (_, x)) (V (_, y)) = compare x y
--}
 mkVariable :: String -> Variable
-mkVariable = id --str = V (sReal str, str)
+mkVariable = id
 
 -- The dimension of the paper.
 paperSize :: Integer
@@ -140,7 +129,7 @@ normalizeExpr (ASSIGN s e) = ASSIGNS [(s, normalizeExpr e)]
 normalizeExpr (ASSIGNS xs) = ASSIGNS $  List.map (\(s, e)->(s, normalizeExpr e)) xs
 normalizeExpr e = e
 
---Maps 
+-- Compute variable to constant mappings for used in substitution/constraint simplification
 processAssign :: (Variable, Expr) -> TransformState ()
 processAssign (v, CONST' x) = bindVariable v (CONST' x)
 processAssign (v, BOOL b) = bindVariable v (BOOL b)
@@ -247,7 +236,7 @@ combine "or" e (BOOL False) = e
 combine "+" (CONST' x) (CONST' y) = CONST' (x `plus` y)
 combine "-" (CONST' x) (CONST' y) = CONST' (x `minus` y)
 combine "*" (CONST' x) (CONST' y) = CONST' (x `times` y)
-combine "/" (CONST' x) (CONST' y) = CONST' (x `divide` y) -- If this throws an error, then the situation wasn't satisfiable anyways
+combine "/" (CONST' x) (CONST' y) = CONST' (x `divide` y) -- Can't throw error, but /0 will still propagate through.
 combine "=" (CONST' x) (CONST' y) = BOOL (x `equals` y)
 combine "<" (CONST' x) (CONST' y) = BOOL (x `lt` y)
 combine ">" (CONST' x) (CONST' y) = BOOL (x `gt` y)
@@ -350,10 +339,6 @@ addDistanceToSet :: (Parser.Identifier, Parser.Identifier) -> TransformState ()
 addDistanceToSet (p1, p2) = state $ \t -> 
     ((), t { distanceSet = Set.insert (p1, p2) (distanceSet t) } )
 
---disable variable naming
---disableNaming :: String -> String
---disableNaming str = str
-
 getValueMap :: TransformState (Map.Map Variable Expr)
 getValueMap = state $ \t -> (valueMap t, t)
 
@@ -385,9 +370,11 @@ addLine iden = do
 pushLineName :: String -> TransformState ()
 pushLineName s = state $ \t -> ((), t { lineList = s : lineList t })
 
+--Construction clauses go through this
 addClause :: Clause -> TransformState ()
 addClause c = state $ \t -> ((), t { constructionClauses = c:(constructionClauses t) })
 
+--assertion clauses go through this
 addConstraintClause :: Clause -> TransformState ()
 addConstraintClause c = state $ \t -> ((), t { assertionClauses = c:(assertionClauses t) })
 

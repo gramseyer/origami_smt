@@ -149,10 +149,7 @@ addFold3Decl var arg1 arg2 = do
 
     let parCond = OP "and" parallelConstr
                            (ASSIGNS [(parCondV, CONST 12), (x1, parX1), (y1, parY1), (x2, parX2), (y2, parY2)])
-                      --     (OP "and" (OP "and" (OP "=" (VAR x1) parX1)
-                        --                       (OP "=" (VAR y1) parY1))
-                          --           (OP "and" (OP "=" (VAR x2) parX2)
-                            --                   (OP "=" (VAR y2) parY2)))
+
     let crossProd = OP "-" (OP "*" (OP "-" (VAR a2) (VAR a1))
                                    (OP "-" (VAR d2) (VAR d1)))
                            (OP "*" (OP "-" (VAR b2) (VAR b1))
@@ -161,13 +158,9 @@ addFold3Decl var arg1 arg2 = do
     
     let selectConstr = LIST "or" [OP "and" (OP "<" (CONST 0) (VAR crossProdV))
                                            (ASSIGNS [(x2, mpX), (y2, mpY)]),
-                                     --      (OP "and" (OP "=" (VAR x2) mpX)
-                                       --            (OP "=" (VAR y2) mpY)),
                                   OP "and" (OP ">" (CONST 0) (VAR crossProdV))
                                            (ASSIGNS [(x2, mpX'), (y2, mpY')]),
-                                         --  (OP "and" (OP "=" (VAR x2) mpX')
-                                           --        (OP "=" (VAR y2) mpY')),
-                                  OP "=" (CONST 0) (VAR crossProdV)]
+                                  OP "=" (CONST 0) (VAR crossProdV)] -- parallel shortcircuit
     let nParCond = OP "and" nonParallelConstr
                             (ASSIGNS [(parCondV, CONST 1), (x1, OP "/" xNum denom), (y1, OP "/" yNum denom)])
     
@@ -184,16 +177,6 @@ addFold4Decl var arg1 arg2 = do
     let preRotateY = OP "-" (VAR d2) (VAR d1)
     let postRotateX = preRotateY
     let postRotateY = OP "-" (CONST 0) preRotateX
- --   let eqAssert = OP "and" (OP "=" (VAR x2) (OP "+" postRotateX (VAR a)))
- --                           (OP "=" (VAR y2) (OP "+" postRotateY (VAR b)))
-  --  let eqAssert' = OP "and" (OP "=" (VAR x1) (VAR a))
- --                            (OP "=" (VAR y1) (VAR b))
-   -- addExpr eqAssert
-    --addExpr eqAssert
-
-   -- (px, py) <- State.freshNamedVarPair "postRotateXY"
-   -- addExpr $ ASSIGN px postRotateX
-    --addExpr $ ASSIGN py postRotateY
     addExpr $ ASSIGN x1 (VAR a)
     addExpr $ ASSIGN y1 (VAR b)
     addExpr $ ASSIGN x2 (OP "+" postRotateX (VAR a))
@@ -225,18 +208,6 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     (c1, d1, c2, d2) <- State.getLineVars line
     (x1, y1, x2, y2) <- State.addLine var
     let r2 = distance (xc, yc) (a, b)
-    --let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
-   -- let quadB = OP "+" (OP "*" (CONST 2) (OP "*" (OP "-" (VAR c2) (VAR c1))
-   --                                              (OP "-" (VAR c1) (VAR c2))))
-   --                    (OP "*" (CONST 2) (OP "*" (OP "-" (VAR d2) (VAR d1))
-   --                                              (OP "-" (VAR d1) (VAR d2))))
-   -- let quadC = OP "-" (OP "-" (OP "+" (OP "+" (OP "+" (SQR (VAR d1)) (SQR (VAR c1)))
-   --                                            (SQR (VAR xc)))
-    --                                   (SQR (VAR yc)))
-     --                          (OP "*" (CONST 2) (OP "+" (OP "*" (VAR xc) (VAR c1))
-       --                                                  (OP "*" (VAR yc) (VAR d1)))))
-         --              r2
-    
 
     (c1v, d1v) <- State.freshNamedVarPair "c1d1"
     (c2v, d2v) <- State.freshNamedVarPair "c2d2"
@@ -248,15 +219,13 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     addExpr $ ASSIGN xcv $VAR  xc
     addExpr $ ASSIGN ycv $VAR yc
 
-
     let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
     let quadB = OP "*" (CONST 2) (OP "+" (OP "*" (OP "-" (VAR c2) (VAR c1)) (OP "-" (VAR c1) (VAR xc)))
                                          (OP "*" (OP "-" (VAR d2) (VAR d1)) (OP "-" (VAR d1) (VAR yc))))
     let quadC = OP "-" (OP "+" (SQR (OP "-" (VAR c1) (VAR xc))) (SQR (OP "-" (VAR d1) (VAR yc)))) r2
     (_, crossProdV) <- State.freshNamedVarPair "fold5Diagnostics"
     let discExpr = OP "-" (SQR quadB) (OP "*" (OP "*" (CONST 4) quadA) quadC)
-    --addExpr $ OP "=" (SQR (VAR desc)) descExpr
-    --addExpr $ OP ">" (VAR desc) (CONST 0)
+
     disc <- getConstructSqrt discExpr
     let sol1 = OP "/" (OP "+" (OP "-" (CONST 0) quadB) (VAR disc))
                       (OP "*" (CONST 2) quadA)
