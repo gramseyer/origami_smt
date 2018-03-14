@@ -11,10 +11,14 @@ import Control.Concurrent
 import Data.SBV.Internals
 import Debug.Trace
 
+-- Pass a set of constraints to an SMT solver.  Has the option of 
+-- running multiple solvers in parallel (and returning the first
+-- to finish).
 runSolvers :: Bool -> State.Transform -> IO (Map.Map String CW)
 runSolvers b t = do
     solvers <- sbvAvailableSolvers
     blocker <- newEmptyMVar
+    -- Yices is currently disabled by default because of a bug in which one spawned SMT process does not always quit after the other finishes.
     mapM_ (forkIO.(parallelHelper blocker (runSolver b t))) $ [z3]--, disableIncrementalConfig yices]
     model <- takeMVar blocker
     putStrLn.prettyprint $ Map.toList model
@@ -60,7 +64,7 @@ makeSymbolicCalculation solverName b t = do
                 io $ putStrLn $ solverName ++ " returned sat"
                 return $ Just $ getModelDictionary cs
             SatExtField _ _ -> do
-                io $ putStrLn $ solverName ++ " is wtf"
+                io $ putStrLn $ solverName ++ " is not returning sensible results"
                 return Nothing
             ProofError _ _ -> do
                 io $ putStrLn $ solverName ++ " had an error"
@@ -85,6 +89,7 @@ assertNegatedConstraints map exprs = constrain.bnot.bAnd $ List.map (makeConstra
 makeConstVar :: (Integer, Integer) -> String
 makeConstVar (x, y) = show x ++ "_div_" ++ show y
 
+-- Transform a real-valued term into input for the SMT solver.
 makeConstraintReal :: Map.Map Variable SReal -> Expr -> SReal
 makeConstraintReal map (VAR v) = map Map.! (v)
 makeConstraintReal map (OP "+" e1 e2) = (makeConstraintReal map e1) + (makeConstraintReal map e2)
@@ -92,8 +97,9 @@ makeConstraintReal map (OP "-" e1 e2) = (makeConstraintReal map e1) - (makeConst
 makeConstraintReal map (OP "*" e1 e2) = (makeConstraintReal map e1) * (makeConstraintReal map e2)
 makeConstraintReal map (OP "/" e1 e2) = (makeConstraintReal map e1) / (makeConstraintReal map e2)
 makeConstraintReal map (CONST' (x, y)) = fromRational (fromInteger x / fromInteger y)
-makeConstraintReal _ e = error $ "invalid real-valued expression" ++ show e
+makeConstraintReal _ e = error $ "invalid real-valued expression " ++ show e
 
+-- Transform a boolean-valued term into input for the SMT solver.
 makeConstraintBool :: Map.Map Variable SReal -> Expr -> SBool
 makeConstraintBool map (OP "and" e1 e2) = (makeConstraintBool map e1) &&& (makeConstraintBool map e2)
 makeConstraintBool map (OP "or" e1 e2) = (makeConstraintBool map e1) ||| (makeConstraintBool map e2)
@@ -105,7 +111,7 @@ makeConstraintBool map (OP "=" e1 e2) = (makeConstraintReal map e1) .== (makeCon
 makeConstraintBool map (NEG e) = bnot $ makeConstraintBool map e
 makeConstraintBool map (ASSIGNS xs) = bAnd $ List.map (makeAssign map) xs
 makeConstraintBool _ (BOOL b) = literal b
-makeConstraintBool _ e = error $ "invalid bool-valued expression" ++ show e
+makeConstraintBool _ e = error $ "invalid bool-valued expression " ++ show e
 
 makeAssign :: Map.Map Variable SReal -> (Variable, Expr) -> SBool
 makeAssign map (v, e) = (map Map.! (v)) .== (makeConstraintReal map e)
