@@ -42,6 +42,7 @@ addVarDecl (Parser.VAR_DECL var) = do
     addExpr $ pointInBox p
     return ()
 
+-- Define var as (a/b, c/d)
 addVarDefn :: Parser.VarDefinition -> TransformState ()
 addVarDefn (Parser.VAR_DEFN var a b c d) = do
     State.addPoint var
@@ -64,6 +65,7 @@ addDecl (Parser.DEC_FOLD6 solnum var p1 l1 p2 l2)
 addDecl (Parser.DEC_FOLD7 var point l1 l2)    = addFold7Decl var point l1 l2
 addDecl (Parser.DEC_INTERSECT var arg1 arg2)  = addIntersectDecl var arg1 arg2
 
+-- Fold a line between points arg1 and arg2
 addFold1Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold1Decl var arg1 arg2 = do
     (a1, b1) <- State.getPointVars arg1
@@ -77,6 +79,7 @@ addFold1Decl var arg1 arg2 = do
     addExpr $ NEG (OP "and" (OP "=" (VAR x1) (VAR x2))
                             (OP "=" (VAR y1) (VAR y2)))
 
+-- Fold a line running equidistant between points arg1 and arg2
 addFold2Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold2Decl var arg1 arg2 = do
     (a1, b1) <- State.getPointVars arg1
@@ -95,6 +98,7 @@ addFold2Decl var arg1 arg2 = do
     addExpr $ NEG (OP "and" (OP "=" (VAR a1) (VAR a2))
                             (OP "=" (VAR b1) (VAR b2)))
 
+-- Compute the relevant terms in the calculation of the intersection between two lines (l1) and (l2)
 assignIntersectPtData :: (Expr, Expr, Expr, Expr)
                       -> (Expr, Expr, Expr, Expr)
                       -> (Expr, Expr, Expr)
@@ -106,6 +110,7 @@ assignIntersectPtData (x1, y1, x2, y2) (x3, y3, x4, y4) = (xNum, yNum, denom) wh
     xNum = OP "-" (OP "*" partA (OP "-" x3 x4)) (OP "*" (OP "-" x1 x2) partB)
     yNum = OP "-" (OP "*" partA (OP "-" y3 y4)) (OP "*" (OP "-" y1 y2) partB)
 
+-- Fold a line by folding line arg1 onto line arg2
 addFold3Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold3Decl var arg1 arg2 = do
     (a1, b1, a2, b2) <- State.getLineVars arg1
@@ -117,6 +122,7 @@ addFold3Decl var arg1 arg2 = do
     (denomV, parCondV) <- State.freshNamedVarPair "denom"
     addExpr $ ASSIGN denomV denom
 
+    -- Whether or not the two lines are parallel
     let parallelConstr = OP "=" (CONST 0) denom
     let nonParallelConstr = NEG parallelConstr
 
@@ -147,6 +153,7 @@ addFold3Decl var arg1 arg2 = do
     let parY2 = getAvg (VAR b1) (VAR d2)
     (crossProdV, _) <- State.freshNamedVarPair "fold3CrossDot"
 
+    -- If lines are parallel, assign values accordintly.
     let parCond = OP "and" parallelConstr
                            (ASSIGNS [(parCondV, CONST 12), (x1, parX1), (y1, parY1), (x2, parX2), (y2, parY2)])
 
@@ -156,18 +163,23 @@ addFold3Decl var arg1 arg2 = do
                                    (OP "-" (VAR c2) (VAR c1)))
     addExpr $ ASSIGN crossProdV crossProd    
     
+    -- Select which line to define
     let selectConstr = LIST "or" [OP "and" (OP "<" (CONST 0) (VAR crossProdV))
                                            (ASSIGNS [(x2, mpX), (y2, mpY)]),
                                   OP "and" (OP ">" (CONST 0) (VAR crossProdV))
                                            (ASSIGNS [(x2, mpX'), (y2, mpY')]),
                                   OP "=" (CONST 0) (VAR crossProdV)] -- parallel shortcircuit
+
+    -- If lines are not paralle, assign values accordingly.
     let nParCond = OP "and" nonParallelConstr
                             (ASSIGNS [(parCondV, CONST 1), (x1, OP "/" xNum denom), (y1, OP "/" yNum denom)])
-    
+
+    -- Lines are either parallel or perpendicular    
     let totalCond = OP "or" parCond nParCond
     addExpr totalCond
     addExpr selectConstr
 
+-- Fold a line running perpendicular to line arg2 passing through point arg1
 addFold4Decl :: Parser.Identifier -> Parser.Identifier -> Parser.Identifier -> TransformState ()
 addFold4Decl var arg1 arg2 = do
     (a, b) <- State.getPointVars arg1
@@ -182,6 +194,8 @@ addFold4Decl var arg1 arg2 = do
     addExpr $ ASSIGN x2 (OP "+" postRotateX (VAR a))
     addExpr $ ASSIGN y2 (OP "+" postRotateY (VAR b))    
 
+
+-- Fold a line by folding point pointMove onto line "line" that passes through point pointOnLine
 addFold5DeclSol1 :: Parser.Identifier
                  -> Parser.Identifier
                  -> Parser.Identifier
@@ -295,46 +309,6 @@ addFold5DeclGenerator flag var pointMove pointOnLine line = do
     let totalExpr = OP "or" sol1Constrained sol2Constrained
     addExpr totalExpr
 
-{-addNFold5Decl :: Parser.Identifier
-              -> Parser.Identifier
-              -> Parser.Identifier
-              -> Parser.Identifier
-              -> TransformState ()
-addNFold5Decl var pointMove pointOnLine line = do
-    (x1, y1, x2, y2) <- State.addLine var
-    (xc, yc) <- State.getPointVars pointOnLine
-    (a, b) <- State.getPointVars pointMove
-    (c1, d1, c2, d2) <- State.getLineVars line
-    let r2 = distance (xc, yc) (a, b)
-    let quadA = OP "+" (SQR (OP "-" (VAR c2) (VAR c1))) (SQR (OP "-" (VAR d2) (VAR d1)))
-    let quadB = OP "+" (OP "*" (CONST 2) (OP "*" (OP "-" (VAR c2) (VAR c1))
-                                                 (OP "-" (VAR c1) (VAR c2))))
-                       (OP "*" (CONST 2) (OP "*" (OP "-" (VAR d2) (VAR d1))
-                                                 (OP "-" (VAR d1) (VAR d2))))
-    let quadC = OP "-" (OP "-" (OP "+" (OP "+" (OP "+" (SQR (VAR d1)) (SQR (VAR c1)))
-                                               (SQR (VAR xc)))
-                                       (SQR (VAR yc)))
-                               (OP "*" (CONST 2) (OP "+" (OP "*" (VAR xc) (VAR c1))
-                                                         (OP "*" (VAR yc) (VAR d1)))))
-                       r2
-    (desc, f2) <- State.freshVarPair
-    let descExpr = OP "-" (SQR quadB) (OP "*" (OP "*" (CONST 2) quadA) quadC)
-    addExpr $ OP "=" (SQR (VAR desc)) descExpr
-    let sol1 = OP "/" (OP "+" (OP "-" (CONST 0) quadB) (VAR desc))
-                      (OP "*" (CONST 2) quadA)
-    let sol2 = OP "/" (OP "-" (OP "-" (CONST 0) quadB) (VAR desc))
-                      (OP "*" (CONST 2) quadA)
-    let sol1x = midPoint (VAR a) (OP "+" (VAR c1) (OP "*" sol1 (OP "-" (VAR c2) (VAR c1))))
-    let sol1y = midPoint (VAR b) (OP "+" (VAR d1) (OP "*" sol1 (OP "-" (VAR d2) (VAR d1))))
-    let sol2x = midPoint (VAR a) (OP "+" (VAR c1) (OP "*" sol2 (OP "-" (VAR c2) (VAR c1))))
-    let sol2y = midPoint (VAR b) (OP "+" (VAR d1) (OP "*" sol2 (OP "-" (VAR d2) (VAR d1))))
-
-    let sol1Expr = OP "and" (OP "=" (VAR x2) sol1x) (OP "=" (VAR y2) sol1y)
-    let sol2Expr = OP "and" (OP "=" (VAR x2) sol2x) (OP "=" (VAR y2) sol2y)
-    let centerExpr = OP "and" (OP "=" (VAR x1) (VAR xc)) (OP "=" (VAR y1) (VAR yc))
-    let totalExpr = OP "and" centerExpr (OP "or" sol1Expr sol2Expr)
-    addExpr totalExpr
--}
 addFold6Decl :: Int
              -> Parser.Identifier
              -> Parser.Identifier
@@ -372,13 +346,16 @@ fold6Find3Solutions :: Int
                     -> TransformState ((Expr, Expr, Expr, Expr), (Expr, Expr, Expr, Expr), (Expr, Expr, Expr, Expr))
 fold6Find3Solutions solNum p1 l1 p2 l2 = do
     compareVector <- fold6GetCompareVector p1 l1
-    (t1, t2, t3) <- fold6FindRoots p1 l1 p2 l2 compareVector
+    (t1, t2, t3, rootCnt) <- fold6FindRoots p1 l1 p2 l2 compareVector
     s1 <- findSolnForRoot t1 p1 l1 p2 l2 compareVector
     s2 <- findSolnForRoot t2 p1 l1 p2 l2 compareVector
     s3 <- findSolnForRoot t3 p1 l1 p2 l2 compareVector
 
-    conditionalAddExpr (solNum >= 2) t1 t2
-    conditionalAddExpr (solNum == 3) t2 t3
+    -- Find 3 solutions, only assert distinctness if there exist suffiently many distinct solutions.
+    addExpr $ OP "or" (OP "=" (VAR rootCnt) (CONST 1)) (OP "<" (VAR t2) (VAR t1))
+    addExpr $ OP "or" (OP "<=" (VAR rootCnt) (CONST 2)) (OP "<" (VAR t3) (VAR t2))
+    --conditionalAddExpr (solNum >= 2) t1 t2
+    --conditionalAddExpr (solNum == 3) t2 t3
     return (s1, s2, s3)
 
 {-
@@ -473,7 +450,7 @@ fold6FindRoots :: Parser.Identifier
                -> Parser.Identifier
                -> Parser.Identifier
                -> (Expr, Expr)
-               -> TransformState (State.Variable, State.Variable, State.Variable)
+               -> TransformState (State.Variable, State.Variable, State.Variable, State.Variable)
 fold6FindRoots p1 l1 p2 l2 u1p = do
     coeffs <- fold6DeclGetCoeffs p1 l1 p2 l2 u1p
     roots <- getDistinctRootCount coeffs
@@ -496,7 +473,7 @@ fold6FindRoots p1 l1 p2 l2 u1p = do
     --addExpr $ OP "<=" (SQR (OP "-" (VAR t1) (VAR t1'))) errorTerm
     --addExpr $ OP "<=" (SQR (OP "-" (VAR t2) (VAR t2'))) errorTerm
     --addExpr $ OP "<=" (SQR (OP "-" (VAR t3) (VAR t3'))) errorTerm
-    return (t1, t2, t3)
+    return (t1, t2, t3, roots)
     
 findRootExpr :: (Expr, Expr, Expr, Expr) -> State.Variable -> Expr
 findRootExpr (a, b, c, d) t = 
