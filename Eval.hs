@@ -354,36 +354,10 @@ fold6Find3Solutions solNum p1 l1 p2 l2 = do
     -- Find 3 solutions, only assert distinctness if there exist suffiently many distinct solutions.
     addExpr $ OP "or" (OP "=" (VAR rootCnt) (CONST 1)) (OP "<" (VAR t2) (VAR t1))
     addExpr $ OP "or" (OP "<=" (VAR rootCnt) (CONST 2)) (OP "<" (VAR t3) (VAR t2))
-    --conditionalAddExpr (solNum >= 2) t1 t2
-    --conditionalAddExpr (solNum == 3) t2 t3
     return (s1, s2, s3)
 
-{-
-fold6Find2Solutions :: Parser.Identifier
-                    -> Parser.Identifier
-                    -> Parser.Identifier
-                    -> Parser.Identifier
-                    -> TransformState ((Expr, Expr, Expr, Expr), (Expr, Expr, Expr, Expr))
-fold6Find2Solutions p1 l1 p2 l2 = do
-    (t1, t2, t3) <- fold6FindRoots p1 l1 p2 l2
-    s1 <- findSolnForRoot t1 p1 l1 p2 l2
-    s2 <- findSolnForRoot t2 p1 l1 p2 l2
-    addExpr $ OP "<" (VAR t2) (VAR t1)
-    addExpr $ OP "=" (VAR t3) (VAR t2)
-    return (s1, s2)
-
-fold6Find1Solution :: Parser.Identifier
-                   -> Parser.Identifier
-                   -> Parser.Identifier
-                   -> Parser.Identifier
-                   -> TransformState ((Expr, Expr, Expr, Expr))
-fold6Find1Solution p1 l1 p2 l2 = do
-    (t1, t2, t3) <- fold6FindRoots p1 l1 p2 l2
-    s <- findSolnForRoot t1 p1 l1 p2 l2
-    addExpr $ OP "=" (VAR t1) (VAR t2)
-    addExpr $ OP "=" (VAR t2) (VAR t3)
-    return s
--}
+-- Solutions to the cubic are ordered along the line going in the direction of the compare vector.
+-- This property falls out of the equations used in ReferenceFinder.
 fold6GetCompareVector :: Parser.Identifier
                       -> Parser.Identifier
                       -> TransformState (Expr, Expr)
@@ -620,6 +594,7 @@ fold6DeclGetCoeffs p1 l1 p2 l2 (u1px, u1py) = do
 dot :: (Expr, Expr) -> (Expr, Expr) -> Expr
 dot (x1, y1) (x2, y2) = OP "+" (OP "*" x1 x2) (OP "*" y1 y2)
 
+-- Fold a line parallel to l1 that moves point p onto line l2
 addFold7Decl :: Parser.Identifier
              -> Parser.Identifier
              -> Parser.Identifier
@@ -768,6 +743,8 @@ processDistance logExpr (p1, p2) = do
         addExpr $ OP "=" (SQR (VAR var)) (OP "+" (SQR (OP "-" (VAR p1x) (VAR p2x))) (SQR (OP "-" (VAR p1y) (VAR p2y))))
         addExpr $ OP ">=" (VAR var) (CONST 0)
 
+-- Search through the constraints for any mention of a distance between points.  We will pull these
+-- out of the expression and compute them separately.
 getDistVars :: Parser.Constraint -> [(Parser.Identifier, Parser.Identifier)]
 getDistVars (Parser.CN_DIST_LT d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
 getDistVars (Parser.CN_DIST_EQ d1 d2) = (getDistVars' d1) ++ (getDistVars' d2)
@@ -817,11 +794,13 @@ getColinearExpr (a, b) (x1, y1, x2, y2) =
 crossProdExpr :: (Expr, Expr) -> (Expr, Expr) -> Expr
 crossProdExpr (vx, vy) (wx, wy) = OP "-" (OP "*" vx wy) (OP "*" vy wx)
 
+-- Construction clauses (the fold sequence)
 addExpr :: Expr -> TransformState ()
 addExpr e = do
     str <- State.resolveExpr e
     State.addClause str
 
+-- Assertion clauses (what we want to prove)
 addConstraintExpr :: Expr -> TransformState ()
 addConstraintExpr e = do
     str <- State.resolveExpr e
