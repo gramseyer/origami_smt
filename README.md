@@ -92,7 +92,7 @@ O6 has potentially 3 solutions.  Each solution will be one of the tangent lines 
                | <distance> '<'|'>'|'=' <distance>
                ;
 <distance> ::= 'd(' <identifier> <identifier> ')'
-             | <distance> [+-/*] <distance>
+             | '(' <distance> [+-/*] <distance> ')'
              | integer
              ;
 
