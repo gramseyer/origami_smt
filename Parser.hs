@@ -12,6 +12,7 @@ import Text.ParserCombinators.Parsec
 import System.Environment
 import Data.Map as Map
 import Data.List as List
+import Data.Char
 
 -- The  first set of constraints are involved in the construction
 -- The second set consist of the assertions about the construction.
@@ -407,8 +408,11 @@ angle = do
     whitespace
     return $ ANGLE arg1 arg2 arg3
 
+identifierChar :: Char -> Bool
+identifierChar c = (isAlphaNum c) || (c == '_')
+
 identifier :: Parser Identifier
-identifier = many alphaNum
+identifier = many $ satisfy identifierChar -- alphaNum
 
 endCommand :: Parser ()
 endCommand = do
@@ -431,10 +435,20 @@ comment = do
     manyTill anyChar endl
     return ()
 
-endl :: Parser ()
-endl = do
+endln :: Parser ()
+endln = do
     char '\n'
     return ()
+
+endlrn :: Parser ()
+endlrn = do
+    char '\r'
+    char '\n'
+    return ()
+
+endl :: Parser ()
+endl = try endln
+   <|> try endlrn
 
 whitespace :: Parser ()
 whitespace = do
